@@ -10,10 +10,28 @@
 
     <depends>com.intellij.modules.platform</depends>
 
-    <resource-bundle>messages.MyBundle</resource-bundle>
+    <actions>
+        <action
+            id="Confer.InjectContext"
+            class="com.github.towhid7667.confer.actions.InjectContextAction"
+            text="Inject into Confer Chat"
+            description="Injects the current selection (or file path) into the Confer chat input as a @file#L reference"
+        >
+            <keyboard-shortcut keymap="$default" first-keystroke="shift alt C"/>
+            <add-to-group group-id="EditorPopupMenu" anchor="last"/>
+        </action>
+    </actions>
 
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow factoryClass="com.github.towhid7667.confer.toolWindow.MyToolWindowFactory" id="MyToolWindow"/>
-        <postStartupActivity implementation="com.github.towhid7667.confer.startup.MyProjectActivity" />
+        <toolWindow
+            factoryClass="com.github.towhid7667.confer.toolWindow.ConferToolWindowFactory"
+            id="Confer"
+            anchor="right"
+            secondary="false"
+            canCloseContents="false"
+        />
+        <applicationService
+            serviceImplementation="com.github.towhid7667.confer.settings.ClaudeSettings"
+        />
     </extensions>
 </idea-plugin>
