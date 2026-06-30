@@ -11,9 +11,11 @@ import com.intellij.diff.DiffContentFactory
 import com.intellij.diff.DiffManager
 import com.intellij.diff.requests.SimpleDiffRequest
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
 import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileTypes.PlainTextFileType
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
@@ -35,9 +37,9 @@ private data class PendingEdit(val filePath: String, val proposedContent: String
 
 class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(BorderLayout()) {
 
-    private val gson           = Gson()
+    private val gson         = Gson()
     private var browser: JBCefBrowser? = null
-    private val pendingEdits   = mutableMapOf<String, PendingEdit>()
+    private val pendingEdits = mutableMapOf<String, PendingEdit>()
     private var includeDiagnostics = false
 
     init {
@@ -59,32 +61,32 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
 
         Disposer.register(project, b)
 
-        val sendQuery    = JBCefJSQuery.create(b as JBCefBrowserBase)
-        val stopQuery    = JBCefJSQuery.create(b as JBCefBrowserBase)
-        val acceptQuery  = JBCefJSQuery.create(b as JBCefBrowserBase)
-        val rejectQuery  = JBCefJSQuery.create(b as JBCefBrowserBase)
-        val modeQuery    = JBCefJSQuery.create(b as JBCefBrowserBase)
-        val diagQuery    = JBCefJSQuery.create(b as JBCefBrowserBase)
-        val newChatQuery = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val sendQuery       = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val stopQuery       = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val acceptQuery     = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val rejectQuery     = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val modeQuery       = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val diagQuery       = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val addContextQuery = JBCefJSQuery.create(b as JBCefBrowserBase)
 
-        sendQuery.addHandler    { text   -> svc.sendPrompt(buildPromptWithContext(text)); null }
-        stopQuery.addHandler    { _      -> svc.stop();                                   null }
-        acceptQuery.addHandler  { toolId -> acceptPendingEdit(toolId);                    null }
-        rejectQuery.addHandler  { toolId -> pendingEdits.remove(toolId);                  null }
-        modeQuery.addHandler    { mode   -> settings.permissionMode = mode; svc.stop();   null }
-        diagQuery.addHandler    { value  -> includeDiagnostics = (value == "1");          null }
-        newChatQuery.addHandler { _      -> svc.stop();                                   null }
+        sendQuery.addHandler       { text   -> svc.sendPrompt(buildPromptWithContext(text)); null }
+        stopQuery.addHandler       { _      -> svc.stop();                                   null }
+        acceptQuery.addHandler     { toolId -> acceptPendingEdit(toolId);                    null }
+        rejectQuery.addHandler     { toolId -> pendingEdits.remove(toolId);                  null }
+        modeQuery.addHandler       { mode   -> settings.permissionMode = mode; svc.stop();   null }
+        diagQuery.addHandler       { value  -> includeDiagnostics = (value == "1");          null }
+        addContextQuery.addHandler { _      -> injectActiveEditorContext();                   null }
 
         b.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
             override fun onLoadEnd(cefBrowser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
                 if (!frame.isMain) return
-                cefBrowser.executeJavaScript("window.__sendBridge__=function(t){${sendQuery.inject("t")}};",          "", 0)
-                cefBrowser.executeJavaScript("window.__stopBridge__=function(){${stopQuery.inject("'stop'")}};",      "", 0)
-                cefBrowser.executeJavaScript("window.__acceptBridge__=function(id){${acceptQuery.inject("id")}};",    "", 0)
-                cefBrowser.executeJavaScript("window.__rejectBridge__=function(id){${rejectQuery.inject("id")}};",    "", 0)
-                cefBrowser.executeJavaScript("window.__modeBridge__=function(m){${modeQuery.inject("m")}};",          "", 0)
-                cefBrowser.executeJavaScript("window.__diagBridge__=function(v){${diagQuery.inject("v")}};",          "", 0)
-                cefBrowser.executeJavaScript("window.__newChatBridge__=function(){${newChatQuery.inject("'new'")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__sendBridge__=function(t){${sendQuery.inject("t")}};",                "", 0)
+                cefBrowser.executeJavaScript("window.__stopBridge__=function(){${stopQuery.inject("'stop'")}};",             "", 0)
+                cefBrowser.executeJavaScript("window.__acceptBridge__=function(id){${acceptQuery.inject("id")}};",           "", 0)
+                cefBrowser.executeJavaScript("window.__rejectBridge__=function(id){${rejectQuery.inject("id")}};",           "", 0)
+                cefBrowser.executeJavaScript("window.__modeBridge__=function(m){${modeQuery.inject("m")}};",                 "", 0)
+                cefBrowser.executeJavaScript("window.__diagBridge__=function(v){${diagQuery.inject("v")}};",                 "", 0)
+                cefBrowser.executeJavaScript("window.__addContextBridge__=function(){${addContextQuery.inject("'add'")}};",  "", 0)
                 cefBrowser.executeJavaScript(
                     "window.initSettings(${gson.toJson(settings.permissionMode)}, false);",
                     "", 0,
@@ -105,6 +107,20 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
             "window.injectContext(${gson.toJson(reference)});",
             "", 0,
         )
+    }
+
+    private fun injectActiveEditorContext() {
+        ApplicationManager.getApplication().invokeLater {
+            val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return@invokeLater
+            val vFile  = FileDocumentManager.getInstance().getFile(editor.document) ?: return@invokeLater
+            val sel    = editor.selectionModel
+            val doc    = editor.document
+            val startLine = doc.getLineNumber(sel.selectionStart) + 1
+            val endLine   = doc.getLineNumber(
+                (sel.selectionEnd - 1).coerceAtLeast(sel.selectionStart),
+            ) + 1
+            injectContext("@${vFile.path}#L$startLine-L$endLine")
+        }
     }
 
     private fun buildPromptWithContext(text: String): String {
