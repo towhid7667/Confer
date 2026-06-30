@@ -21,6 +21,7 @@ import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.Disposer
 import com.intellij.openapi.vfs.LocalFileSystem
 import com.intellij.ui.components.JBLabel
+import java.io.File
 import com.intellij.ui.components.JBPanel
 import com.intellij.ui.jcef.JBCefApp
 import com.intellij.ui.jcef.JBCefBrowser
@@ -89,6 +90,10 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
                 cefBrowser.executeJavaScript("window.__addContextBridge__=function(){${addContextQuery.inject("'add'")}};",  "", 0)
                 cefBrowser.executeJavaScript(
                     "window.initSettings(${gson.toJson(settings.permissionMode)}, false);",
+                    "", 0,
+                )
+                cefBrowser.executeJavaScript(
+                    "window.setSkills(${loadSkills()});",
                     "", 0,
                 )
             }
@@ -218,6 +223,26 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
 
     private fun jsCall(type: String, payload: String): String =
         "window.receiveEvent(${gson.toJson(type)},${gson.toJson(payload)});"
+
+    private fun loadSkills(): String {
+        val dir = File(System.getProperty("user.home"), ".claude/skills")
+        if (!dir.exists() || !dir.isDirectory) return "[]"
+        val list = dir.listFiles()
+            ?.filter { it.isDirectory }
+            ?.mapNotNull { skillDir ->
+                val md = File(skillDir, "SKILL.md")
+                if (!md.exists()) return@mapNotNull null
+                val desc = md.readLines()
+                    .firstOrNull { " - " in it }
+                    ?.substringAfterLast(" - ")
+                    ?.trim()
+                    ?.take(80)
+                    ?: skillDir.name
+                mapOf("cmd" to "/${skillDir.name}", "desc" to desc)
+            }
+            ?: emptyList()
+        return gson.toJson(list)
+    }
 
     private fun loadHtml(): String =
         javaClass.getResource("/com/github/towhid7667/confer/chat.html")

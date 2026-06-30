@@ -29,6 +29,7 @@
             anchor="right"
             secondary="false"
             canCloseContents="false"
+            icon="/icons/confer.svg"
         />
         <applicationService
             serviceImplementation="com.github.towhid7667.confer.settings.ClaudeSettings"
