@@ -433,6 +433,7 @@ function addToolBlock(name, inputJson, toolId, isEdit) {
   const hdr = document.createElement('div');
   hdr.className = 'tool-hdr';
   hdr.innerHTML = '<span class="tool-chev">▶</span><span class="tool-nm">' + esc(name) + '</span>';
+  hdr.classList.add('open');
   hdr.addEventListener('click', function() { hdr.classList.toggle('open'); });
 
   const bdy = document.createElement('div');
