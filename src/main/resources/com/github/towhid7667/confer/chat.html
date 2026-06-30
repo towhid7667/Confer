@@ -53,18 +53,23 @@
   .msg-content { color: var(--text); white-space: pre-wrap; word-break: break-word; line-height: 1.65; font-size: 13px; }
   .msg-content code { font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
 
-  /* ── Budget row ───────────────────────────── */
-  .budget-row { display: flex; gap: 18px; padding: 5px 16px 8px; align-items: center; }
+  /* ── Budget bar (persistent) ──────────────── */
+  #budget-bar { display: none; gap: 18px; padding: 4px 16px 5px; align-items: center; border-top: 1px solid #212124; background: var(--bg); flex-shrink: 0; }
+  #budget-bar.visible { display: flex; }
 
   .budget-item { display: flex; align-items: center; gap: 6px; }
-
   .budget-label { font-size: 10px; color: var(--text-dim); width: 30px; flex-shrink: 0; }
-
   .budget-track { width: 64px; height: 3px; background: #252529; border-radius: 2px; overflow: hidden; }
+  .budget-fill  { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .budget-pct   { font-size: 10px; color: var(--text-dim); width: 28px; }
 
-  .budget-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
-
-  .budget-pct { font-size: 10px; color: var(--text-dim); width: 28px; }
+  /* ── Diff view (Edit / Write tools) ──────── */
+  .diff-file { padding: 4px 10px; font-family: var(--mono); font-size: 11px; color: #777; border-bottom: 1px solid #2a2a2f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .diff-code { overflow-y: auto; max-height: 220px; }
+  .diff-line { padding: 1px 10px; font-family: var(--mono); font-size: 11.5px; white-space: pre; line-height: 1.55; }
+  .diff-del  { background: #2a1818; color: #c27f7f; }
+  .diff-add  { background: #182a1e; color: #7fc27f; }
+  .diff-sep  { padding: 3px 10px; font-family: var(--mono); font-size: 11px; color: #3a3a42; text-align: center; letter-spacing: 2px; }
 
   /* ── Tool block ───────────────────────────── */
   .tool-block { margin: 7px 0 3px; border: 1px solid #2a2a2f; border-radius: 6px; overflow: hidden; background: var(--tool-bg); }
@@ -198,6 +203,9 @@
 <!-- ── Thread ───────────────────────────── -->
 <div id="thread"></div>
 
+<!-- ── Persistent budget bar ────────────── -->
+<div id="budget-bar"></div>
+
 <!-- ── Skills popup (fixed, positioned by JS) ── -->
 <div id="skills-popup" class="hidden"></div>
 
@@ -236,8 +244,9 @@
 <script>
 'use strict';
 
-const $empty   = document.getElementById('empty');
-const $thread  = document.getElementById('thread');
+const $empty     = document.getElementById('empty');
+const $thread    = document.getElementById('thread');
+const $budgetBar = document.getElementById('budget-bar');
 const $prompt  = document.getElementById('prompt');
 const $popup   = document.getElementById('skills-popup');
 const $addBtn  = document.getElementById('add-btn');
@@ -273,12 +282,10 @@ function renderBudget(cost) {
     fiveHourCost += cost;
     weeklyCost   += cost;
   }
-  const p5  = Math.min(100, Math.round((fiveHourCost / FIVE_H_BUDGET) * 100));
-  const pw  = Math.min(100, Math.round((weeklyCost   / WEEKLY_BUDGET) * 100));
+  const p5 = Math.min(100, Math.round((fiveHourCost / FIVE_H_BUDGET) * 100));
+  const pw = Math.min(100, Math.round((weeklyCost   / WEEKLY_BUDGET) * 100));
 
-  const row = document.createElement('div');
-  row.className = 'budget-row';
-  row.innerHTML =
+  $budgetBar.innerHTML =
     '<div class="budget-item">' +
       '<span class="budget-label">5h</span>' +
       '<div class="budget-track"><div class="budget-fill" style="width:' + p5 + '%;background:' + budgetColor(p5) + '"></div></div>' +
@@ -289,7 +296,7 @@ function renderBudget(cost) {
       '<div class="budget-track"><div class="budget-fill" style="width:' + pw + '%;background:' + budgetColor(pw) + '"></div></div>' +
       '<span class="budget-pct">' + pw + '%</span>' +
     '</div>';
-  $thread.appendChild(row);
+  $budgetBar.classList.add('visible');
 }
 
 /* ── Skills popup ────────────────────── */
@@ -423,22 +430,58 @@ function appendText(text) {
   scrollEnd();
 }
 
-function addToolBlock(name, inputJson, toolId, isEdit) {
-  let pretty = inputJson;
-  try { pretty = JSON.stringify(JSON.parse(inputJson), null, 2); } catch(_) {}
+function buildToolBody(name, inputJson, isEdit) {
+  const bdy = document.createElement('div');
+  bdy.className = 'tool-bdy';
 
+  if (isEdit) {
+    try {
+      const input = JSON.parse(inputJson);
+      const fp = input.file_path || '';
+      if (fp) {
+        const fh = document.createElement('div');
+        fh.className = 'diff-file';
+        fh.textContent = fp;
+        bdy.appendChild(fh);
+      }
+      const code = document.createElement('div');
+      code.className = 'diff-code';
+      if (input.old_string !== undefined || input.new_string !== undefined) {
+        (input.old_string || '').split('\n').forEach(function(l) {
+          const r = document.createElement('div'); r.className = 'diff-line diff-del'; r.textContent = '- ' + l; code.appendChild(r);
+        });
+        const sep = document.createElement('div'); sep.className = 'diff-sep'; sep.textContent = '···'; code.appendChild(sep);
+        (input.new_string || '').split('\n').forEach(function(l) {
+          const r = document.createElement('div'); r.className = 'diff-line diff-add'; r.textContent = '+ ' + l; code.appendChild(r);
+        });
+      } else if (input.content !== undefined) {
+        input.content.split('\n').forEach(function(l) {
+          const r = document.createElement('div'); r.className = 'diff-line diff-add'; r.textContent = '+ ' + l; code.appendChild(r);
+        });
+      } else {
+        bdy.textContent = JSON.stringify(input, null, 2);
+        return bdy;
+      }
+      bdy.appendChild(code);
+      return bdy;
+    } catch(_) { bdy.textContent = inputJson; return bdy; }
+  }
+
+  try { bdy.textContent = JSON.stringify(JSON.parse(inputJson), null, 2); }
+  catch(_) { bdy.textContent = inputJson; }
+  return bdy;
+}
+
+function addToolBlock(name, inputJson, toolId, isEdit) {
   const block = document.createElement('div');
   block.className = 'tool-block';
 
   const hdr = document.createElement('div');
-  hdr.className = 'tool-hdr';
+  hdr.className = 'tool-hdr open';
   hdr.innerHTML = '<span class="tool-chev">▶</span><span class="tool-nm">' + esc(name) + '</span>';
-  hdr.classList.add('open');
   hdr.addEventListener('click', function() { hdr.classList.toggle('open'); });
 
-  const bdy = document.createElement('div');
-  bdy.className = 'tool-bdy';
-  bdy.textContent = pretty;
+  const bdy = buildToolBody(name, inputJson, isEdit);
 
   block.appendChild(hdr);
   block.appendChild(bdy);
