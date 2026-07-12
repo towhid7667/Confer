@@ -20,6 +20,17 @@
             <keyboard-shortcut keymap="$default" first-keystroke="shift alt C"/>
             <add-to-group group-id="EditorPopupMenu" anchor="last"/>
         </action>
+        <action
+            id="Confer.OpenChat"
+            class="com.github.towhid7667.confer.actions.OpenConferAction"
+            text="Open Confer Chat"
+            description="Opens the Confer chat panel"
+            icon="/icons/confer.svg"
+        >
+            <!-- Best-effort placement: the floating icon group in the top-right of the editor.
+                 Unverified against this exact platform version — check visually via runIde. -->
+            <add-to-group group-id="EditorContextBarMenu" anchor="last"/>
+        </action>
     </actions>
 
     <extensions defaultExtensionNs="com.intellij">
@@ -34,5 +45,13 @@
         <applicationService
             serviceImplementation="com.github.towhid7667.confer.settings.ClaudeSettings"
         />
+        <applicationConfigurable
+            id="com.github.towhid7667.confer.settings.ClaudeConfigurable"
+            instance="com.github.towhid7667.confer.settings.ClaudeConfigurable"
+            displayName="Confer"
+        />
+        <fileEditorProvider implementation="com.github.towhid7667.confer.toolWindow.ConferFileEditorProvider"/>
+        <statusBarWidgetFactory id="ConferStatusBarWidget" implementation="com.github.towhid7667.confer.statusbar.ConferStatusBarWidgetFactory"/>
+        <notificationGroup id="Confer" displayType="BALLOON"/>
     </extensions>
 </idea-plugin>

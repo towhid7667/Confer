@@ -14,8 +14,10 @@ import java.io.PrintWriter
 class ClaudeProcess(
     binaryPath: String,
     workingDir: String,
-    // ⚠️ Verify --permission-mode flag name and accepted values against `claude --help`
     permissionMode: String = "default",
+    model: String = "default",
+    resumeSessionId: String? = null,
+    extraEnv: Map<String, String> = emptyMap(),
 ) : Disposable {
 
     private val handler: OSProcessHandler
@@ -26,9 +28,16 @@ class ClaudeProcess(
         val params = buildList {
             add("--output-format"); add("stream-json")
             add("--input-format");  add("stream-json")
+            add("--include-partial-messages")
             add("--verbose")
             if (permissionMode != "default") {
                 add("--permission-mode"); add(permissionMode)
+            }
+            if (model != "default") {
+                add("--model"); add(model)
+            }
+            if (!resumeSessionId.isNullOrBlank()) {
+                add("--resume"); add(resumeSessionId)
             }
         }
 
@@ -36,6 +45,7 @@ class ClaudeProcess(
             .withParameters(*params.toTypedArray())
             .withWorkDirectory(workingDir)
             .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+            .withEnvironment(extraEnv)
             .withCharset(Charsets.UTF_8)
 
         handler = OSProcessHandler(cmd)

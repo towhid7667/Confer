@@ -6,98 +6,296 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
   :root {
-    --bg:       #1c1c1e;
-    --border:   #2e2e33;
-    --accent:   #CF7A4A;
-    --accent-h: #b86a3c;
-    --text:     #d0d0d0;
-    --text-dim: #55555f;
-    --text-mid: #888;
-    --code-bg:  #252529;
-    --pill-bg:  #2a2a30;
-    --tool-bg:  #222227;
-    --err-bg:   #3a1c1c;
-    --mono: 'JetBrains Mono','Fira Code','Menlo','Consolas',monospace;
-    --sans: -apple-system,'Segoe UI',Roboto,'Noto Sans',Ubuntu,sans-serif;
+    /* Surfaces */
+    --cc-bg:            #1F1E1D;
+    --cc-bg-elevated:   #262524;
+    --cc-bg-input:      #2B2A28;
+    --cc-bg-hover:      #35332F;
+    --cc-bg-active:     #3E3B37;
+    --cc-border:        #3A3835;
+    --cc-border-subtle: #2E2C2A;
+
+    /* Text */
+    --cc-fg:            #E5E2DD;
+    --cc-fg-muted:      #A8A29A;
+    --cc-fg-faint:      #6E6A65;
+
+    /* Brand — Claude clay, kept so Confer visually reads as a Claude Code companion. Icon shape (not color) carries the trademark-distinctiveness. */
+    --cc-accent:        #D97757;
+    --cc-accent-hover:  #E08D71;
+    --cc-accent-muted:  rgba(217,119,87,0.14);
+    --cc-accent-border: rgba(217,119,87,0.35);
+
+    /* Semantic */
+    --cc-success:       #4EC9A0;
+    --cc-warning:       #E5A44C;
+    --cc-error:         #F14C4C;
+    --cc-info:          #4FA3E3;
+
+    /* Diffs */
+    --cc-diff-add-bg:     rgba(78,201,160,0.14);
+    --cc-diff-add-fg:     #6FD9B8;
+    --cc-diff-add-gutter: #2E4E44;
+    --cc-diff-del-bg:     rgba(241,76,76,0.13);
+    --cc-diff-del-fg:     #F58A8A;
+    --cc-diff-del-gutter: #4E3030;
+
+    /* Thinking */
+    --cc-thinking-fg:   #9B93C9;
+    --cc-thinking-bg:   rgba(155,147,201,0.08);
+
+    /* User message */
+    --cc-user-bg:       #262524;
+    --cc-user-accent:   #D97757;
+
+    /* Type */
+    --cc-font-ui:   -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+    --cc-font-mono: "JetBrains Mono", "SF Mono", Menlo, Consolas, monospace;
+    --cc-fs-base:   13px;
+    --cc-fs-small:  11px;
+    --cc-fs-mono:   12.5px;
+    --cc-lh:        1.55;
+
+    /* Geometry */
+    --cc-radius:    6px;
+    --cc-radius-sm: 4px;
+    --cc-gap:       8px;
+    --cc-pad:       12px;
   }
 
-  html, body { height: 100%; overflow: hidden; background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px; line-height: 1.6; }
+  :root[data-theme="light"] {
+    --cc-bg:#FAF9F7; --cc-bg-elevated:#F2F0EC; --cc-bg-input:#FFFFFF;
+    --cc-bg-hover:#EBE8E3; --cc-bg-active:#E2DED8;
+    --cc-border:#DDD9D2; --cc-border-subtle:#E9E6E1;
+    --cc-fg:#2B2A28; --cc-fg-muted:#6E6A65; --cc-fg-faint:#A8A29A;
+    --cc-accent:#C05F3C; --cc-accent-hover:#A94E2E;
+    --cc-success:#17845F; --cc-warning:#B87515; --cc-error:#C42B2B;
+    --cc-user-bg:#F2F0EC; --cc-thinking-fg:#6B5FA8;
+  }
+
+  html, body { height: 100%; overflow: hidden; background: var(--cc-bg); color: var(--cc-fg); font-family: var(--cc-font-ui); font-size: var(--cc-fs-base); line-height: var(--cc-lh); }
   body { display: flex; flex-direction: column; }
+
+  /* ── Header bar ───────────────────────────── */
+  #header-bar { height: 32px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; padding: 0 6px 0 10px; border-bottom: 1px solid var(--cc-border-subtle); background: var(--cc-bg); -webkit-user-select: none; }
+  #header-left { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; color: var(--cc-fg); }
+  #header-left svg { flex-shrink: 0; }
+  #header-right { display: flex; align-items: center; gap: 2px; }
+  .hdr-btn { background: none; border: none; color: var(--cc-fg-muted); cursor: pointer; width: 24px; height: 24px; border-radius: 5px; font-size: 13px; display: flex; align-items: center; justify-content: center; transition: background 0.1s, color 0.1s; }
+  .hdr-btn:hover:not(:disabled) { background: var(--cc-bg-hover); color: var(--cc-fg); }
+  .hdr-btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* ── Overlay (usage / mcp / plugins / history / onboarding) ── */
+  #overlay-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none; align-items: center; justify-content: center; z-index: 1000; }
+  #overlay-backdrop.visible { display: flex; }
+  #overlay-card { width: min(440px, 92vw); max-height: 78vh; background: var(--cc-bg); border: 1px solid var(--cc-border); border-radius: 10px; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 12px 40px rgba(0,0,0,0.5); }
+  #overlay-hdr { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border-bottom: 1px solid var(--cc-border-subtle); font-size: 13px; font-weight: 600; color: var(--cc-fg); flex-shrink: 0; }
+  #overlay-close { background: none; border: none; color: var(--cc-fg-muted); cursor: pointer; font-size: 13px; width: 22px; height: 22px; border-radius: 5px; }
+  #overlay-close:hover { background: var(--cc-bg-hover); color: var(--cc-fg); }
+  #overlay-body { padding: 12px 14px; overflow-y: auto; font-size: 12.5px; color: var(--cc-fg); }
+
+  .ov-note { font-size: 11px; color: var(--cc-fg-faint); margin-bottom: 10px; line-height: 1.5; }
+  .ov-section-hdr { margin: 14px 0 6px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cc-fg-faint); }
+  .ov-section-hdr:first-child { margin-top: 0; }
+  .usage-bar-row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .usage-bar-row .budget-track { flex: 1; height: 4px; }
+  .usage-tool-row { display: flex; justify-content: space-between; padding: 3px 0; font-family: var(--cc-font-mono); font-size: 11.5px; }
+  .usage-tool-row span:last-child { color: var(--cc-fg-faint); }
+
+  .mcp-row { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid var(--cc-border-subtle); }
+  .mcp-row:last-child { border-bottom: none; }
+  .mcp-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .mcp-dot.ok { background: var(--cc-success); }
+  .mcp-dot.warn { background: var(--cc-warning); }
+  .mcp-dot.err { background: var(--cc-error); }
+  .mcp-name { flex: 1; font-size: 12.5px; }
+  .mcp-status { font-size: 10.5px; color: var(--cc-fg-faint); }
+  .mcp-action { background: none; border: 1px solid var(--cc-border); color: var(--cc-fg-faint); cursor: default; font-size: 10.5px; padding: 2px 7px; border-radius: 4px; opacity: 0.5; }
+
+  .hist-group-hdr { margin: 12px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cc-fg-faint); }
+  .hist-group-hdr:first-child { margin-top: 0; }
+  .hist-row { padding: 7px 8px; border-radius: var(--cc-radius-sm); cursor: pointer; }
+  .hist-row:hover { background: var(--cc-bg-hover); }
+  .hist-preview { font-size: 12px; color: var(--cc-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist-time { font-size: 10px; color: var(--cc-fg-faint); }
+  .hist-empty { color: var(--cc-fg-faint); font-size: 12px; padding: 6px 0; }
+
+  .ob-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--cc-border-subtle); }
+  .ob-item:last-child { border-bottom: none; }
+  .ob-item-text { font-size: 12px; color: var(--cc-fg); line-height: 1.5; }
+  .ob-show-btn { background: var(--cc-bg-elevated); border: 1px solid var(--cc-border); color: var(--cc-fg-muted); cursor: pointer; font-size: 10.5px; padding: 3px 9px; border-radius: 5px; flex-shrink: 0; white-space: nowrap; }
+  .ob-show-btn:hover { background: var(--cc-bg-hover); color: var(--cc-fg); }
+  .ob-dismiss-btn { margin-top: 12px; width: 100%; background: var(--cc-accent); border: none; color: #fff; cursor: pointer; font-size: 12px; padding: 7px; border-radius: var(--cc-radius); }
+  .ob-dismiss-btn:hover { background: var(--cc-accent-hover); }
+
+  .plan-row { display: flex; gap: 8px; align-items: center; margin: 8px 16px; padding: 8px 10px; background: var(--cc-bg-elevated); border: 1px solid var(--cc-border-subtle); border-radius: var(--cc-radius); }
+  .plan-row-label { font-size: 12px; color: var(--cc-fg-muted); flex: 1; }
+  .plan-btn { font-size: 11.5px; padding: 4px 10px; border-radius: var(--cc-radius-sm); border: 1px solid; cursor: pointer; }
+  .plan-approve { background: var(--cc-diff-add-bg); color: var(--cc-success); border-color: var(--cc-diff-add-gutter); }
+  .plan-reject { background: var(--cc-diff-del-bg); color: var(--cc-error); border-color: var(--cc-diff-del-gutter); }
 
   /* ── Empty state ──────────────────────────── */
   #empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; user-select: none; }
   #empty.hidden { display: none; }
 
-  #empty-logo { font-size: 18px; font-weight: 600; color: var(--text); letter-spacing: 0.01em; display: flex; align-items: center; gap: 8px; }
+  #empty-logo { font-size: 18px; font-weight: 600; color: var(--cc-fg); letter-spacing: 0.01em; display: flex; align-items: center; gap: 8px; }
+  .logo-stroke { stroke: var(--cc-accent); }
 
-  #empty-hint { font-size: 12.5px; color: var(--text-mid); text-align: center; max-width: 260px; line-height: 1.75; }
+  #empty-hint { font-size: 12.5px; color: var(--cc-fg-muted); text-align: center; max-width: 260px; line-height: 1.75; }
 
-  kbd { display: inline-block; padding: 0 5px; background: var(--pill-bg); border: 1px solid #3a3a42; border-radius: 4px; font-size: 11px; font-family: var(--mono); color: #bbb; vertical-align: baseline; }
+  kbd { display: inline-block; padding: 0 5px; background: var(--cc-bg-elevated); border: 1px solid var(--cc-border); border-radius: var(--cc-radius-sm); font-size: 11px; font-family: var(--cc-font-mono); color: var(--cc-fg-muted); vertical-align: baseline; }
+
+  #suggested { display: flex; flex-direction: column; gap: 6px; width: 100%; max-width: 280px; }
+  .sg-prompt { background: var(--cc-bg-elevated); border: 1px solid var(--cc-border-subtle); border-radius: var(--cc-radius); padding: 8px 12px; font-size: 12px; color: var(--cc-fg-muted); cursor: pointer; text-align: left; transition: background 0.1s, border-color 0.1s, color 0.1s; }
+  .sg-prompt:hover { background: var(--cc-bg-hover); border-color: var(--cc-border); color: var(--cc-fg); }
 
   /* ── Thread ───────────────────────────────── */
-  #thread { flex: 1; overflow-y: auto; padding-bottom: 8px; display: none; }
+  #thread { flex: 1; overflow-y: auto; padding-bottom: 8px; display: none; position: relative; }
   #thread.visible { display: block; }
   #thread::-webkit-scrollbar { width: 3px; }
   #thread::-webkit-scrollbar-track { background: transparent; }
-  #thread::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+  #thread::-webkit-scrollbar-thumb { background: var(--cc-border); border-radius: 2px; }
 
-  .msg-block { padding: 12px 16px 10px; border-bottom: 1px solid #212124; }
+  .msg-block { position: relative; padding: 12px 16px 10px; }
 
   .msg-role { font-size: 10.5px; font-weight: 700; letter-spacing: 0.09em; text-transform: uppercase; margin-bottom: 5px; display: flex; align-items: center; gap: 7px; }
-  .msg-role.user   { color: var(--text-dim); }
-  .msg-role.claude { color: var(--accent); }
+  .msg-role.user   { color: var(--cc-fg-faint); }
+  .msg-role.claude { color: var(--cc-accent); }
 
-  .stream-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; flex-shrink: 0; }
+  .stream-dot { width: 5px; height: 5px; background: var(--cc-accent); border-radius: 50%; animation: pulse 1.2s ease-in-out infinite; flex-shrink: 0; }
+  .status-word { font-weight: 400; text-transform: none; letter-spacing: normal; color: var(--cc-fg-faint); font-style: italic; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.1} }
 
-  .msg-content { color: var(--text); white-space: pre-wrap; word-break: break-word; line-height: 1.65; font-size: 13px; }
-  .msg-content code { font-family: var(--mono); font-size: 12px; background: var(--code-bg); padding: 1px 5px; border-radius: 3px; }
+  /* User block */
+  .user-block { background: var(--cc-user-bg); border-left: 3px solid var(--cc-user-accent); border-radius: 0 var(--cc-radius) var(--cc-radius) 0; margin: 6px 12px; padding: 10px 14px; }
+  .msg-content { color: var(--cc-fg); white-space: pre-wrap; word-break: break-word; line-height: var(--cc-lh); font-size: var(--cc-fs-base); }
+
+  .msg-mention { display: inline-flex; align-items: center; gap: 3px; background: var(--cc-accent-muted); border: 1px solid var(--cc-accent-border); border-radius: var(--cc-radius-sm); padding: 0 5px; color: var(--cc-accent); font-family: var(--cc-font-mono); font-size: 11.5px; cursor: pointer; }
+  .msg-mention:hover { background: var(--cc-accent-border); }
+
+  /* Hover toolbar */
+  .block-toolbar { position: absolute; top: 8px; right: 12px; display: flex; gap: 3px; opacity: 0; transition: opacity 0.12s; }
+  .msg-block:hover .block-toolbar { opacity: 1; }
+  .tb-btn { background: var(--cc-bg-elevated); border: 1px solid var(--cc-border-subtle); color: var(--cc-fg-muted); width: 22px; height: 22px; border-radius: var(--cc-radius-sm); cursor: pointer; font-size: 11px; display: flex; align-items: center; justify-content: center; }
+  .tb-btn:hover:not(:disabled) { background: var(--cc-bg-hover); color: var(--cc-fg); }
+  .tb-btn:disabled { opacity: 0.35; cursor: default; }
+
+  /* Assistant markdown content */
+  .msg-md { color: var(--cc-fg); font-size: var(--cc-fs-base); line-height: var(--cc-lh); word-break: break-word; }
+  .msg-md p { white-space: pre-wrap; margin: 0 0 6px; }
+  .msg-md p:last-child { margin-bottom: 0; }
+  .msg-md h1, .msg-md h2, .msg-md h3 { margin: 10px 0 6px; font-weight: 600; line-height: 1.3; }
+  .msg-md h1 { font-size: 16px; }
+  .msg-md h2 { font-size: 14.5px; }
+  .msg-md h3 { font-size: 13.5px; }
+  .msg-md ul, .msg-md ol { margin: 4px 0 8px 20px; }
+  .msg-md li { margin: 2px 0; }
+  .msg-md blockquote { margin: 6px 0; padding: 2px 10px; border-left: 3px solid var(--cc-border); color: var(--cc-fg-muted); }
+  .msg-md a { color: var(--cc-accent); text-decoration: none; }
+  .msg-md a:hover { text-decoration: underline; }
+  .msg-md code { font-family: var(--cc-font-mono); font-size: var(--cc-fs-mono); background: var(--cc-bg-elevated); padding: 1px 5px; border-radius: var(--cc-radius-sm); }
+  .msg-md table { border-collapse: collapse; margin: 6px 0 10px; font-size: 12px; }
+  .msg-md th, .msg-md td { border: 1px solid var(--cc-border-subtle); padding: 3px 8px; text-align: left; }
+  .msg-md th { background: var(--cc-bg-elevated); }
+
+  .md-pre { margin: 6px 0 10px; border: 1px solid var(--cc-border-subtle); border-radius: var(--cc-radius); overflow: hidden; background: var(--cc-bg-elevated); }
+  .md-pre-hdr { display: flex; align-items: center; justify-content: space-between; padding: 4px 10px; font-family: var(--cc-font-mono); font-size: 10.5px; color: var(--cc-fg-faint); border-bottom: 1px solid var(--cc-border-subtle); }
+  .md-copy { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; font-size: 10.5px; font-family: var(--cc-font-ui); padding: 1px 5px; border-radius: var(--cc-radius-sm); }
+  .md-copy:hover { background: var(--cc-bg-hover); color: var(--cc-fg); }
+  .md-pre pre { margin: 0; padding: 8px 10px; overflow-x: auto; }
+  .md-pre code { font-family: var(--cc-font-mono); font-size: var(--cc-fs-mono); background: none; padding: 0; color: var(--cc-fg); white-space: pre; }
+
+  .stream-caret { display: inline-block; width: 6px; height: 13px; background: var(--cc-accent); margin-left: 1px; vertical-align: text-bottom; animation: caret-blink 0.85s step-start infinite; }
+  @keyframes caret-blink { 50% { opacity: 0; } }
+
+  /* Thinking block */
+  .thinking-block { margin: 6px 0; }
+  .thinking-summary { font-style: italic; color: var(--cc-thinking-fg); font-size: 12px; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: var(--cc-radius-sm); background: var(--cc-thinking-bg); user-select: none; }
+  .thinking-elapsed { color: var(--cc-fg-faint); font-style: normal; }
+  .thinking-summary .tool-chev { margin-left: auto; }
+  .thinking-body { display: none; font-style: italic; color: var(--cc-thinking-fg); font-size: 12px; padding: 6px 10px; white-space: pre-wrap; background: var(--cc-thinking-bg); border-radius: 0 0 var(--cc-radius-sm) var(--cc-radius-sm); }
+  .thinking-block.open .thinking-body { display: block; }
+  .thinking-block.open .tool-chev { transform: rotate(90deg); }
 
   /* ── Budget bar (persistent) ──────────────── */
-  #budget-bar { display: none; gap: 18px; padding: 4px 16px 5px; align-items: center; border-top: 1px solid #212124; background: var(--bg); flex-shrink: 0; }
+  #budget-bar { display: none; gap: 18px; padding: 4px 16px 5px; align-items: center; border-top: 1px solid var(--cc-border-subtle); background: var(--cc-bg); flex-shrink: 0; }
   #budget-bar.visible { display: flex; }
 
   .budget-item { display: flex; align-items: center; gap: 6px; }
-  .budget-label { font-size: 10px; color: var(--text-dim); width: 30px; flex-shrink: 0; }
-  .budget-track { width: 64px; height: 3px; background: #252529; border-radius: 2px; overflow: hidden; }
+  .budget-label { font-size: 10px; color: var(--cc-fg-faint); width: 30px; flex-shrink: 0; }
+  .budget-track { width: 64px; height: 3px; background: var(--cc-bg-elevated); border-radius: 2px; overflow: hidden; }
   .budget-fill  { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
-  .budget-pct   { font-size: 10px; color: var(--text-dim); width: 28px; }
+  .budget-pct   { font-size: 10px; color: var(--cc-fg-faint); width: 28px; }
 
   /* ── Diff view (Edit / Write tools) ──────── */
-  .diff-file { padding: 4px 10px; font-family: var(--mono); font-size: 11px; color: #777; border-bottom: 1px solid #2a2a2f; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .diff-file { display: flex; align-items: center; gap: 8px; padding: 5px 10px; font-family: var(--cc-font-mono); font-size: 11px; color: var(--cc-fg-muted); border-bottom: 1px solid var(--cc-border-subtle); white-space: nowrap; overflow: hidden; }
+  .diff-file-path { overflow: hidden; text-overflow: ellipsis; }
+  .diff-stat-add { color: var(--cc-diff-add-fg); }
+  .diff-stat-del { color: var(--cc-diff-del-fg); }
+  .diff-view-link { margin-left: auto; background: none; border: none; color: var(--cc-accent); cursor: pointer; font-size: 10.5px; font-family: var(--cc-font-ui); flex-shrink: 0; }
+  .diff-view-link:hover { text-decoration: underline; }
+
+  .tool-edit-toggle { display: block; background: none; border: none; color: var(--cc-accent); cursor: pointer; font-size: 10.5px; font-family: var(--cc-font-ui); padding: 6px 10px; border-top: 1px solid var(--cc-border-subtle); width: 100%; text-align: left; }
+  .tool-edit-toggle:hover { text-decoration: underline; }
+  .diff-editor { display: block; width: 100%; min-height: 100px; max-height: 240px; padding: 8px 10px; font-family: var(--cc-font-mono); font-size: 11.5px; line-height: 1.5; color: var(--cc-fg); background: var(--cc-bg-input); border: none; border-top: 1px solid var(--cc-border-subtle); resize: vertical; outline: none; }
+  .diff-editor.hidden { display: none; }
+  .tool-review-note { padding: 5px 10px 0; font-size: 10.5px; color: var(--cc-fg-faint); font-style: italic; }
   .diff-code { overflow-y: auto; max-height: 220px; }
-  .diff-line { padding: 1px 10px; font-family: var(--mono); font-size: 11.5px; white-space: pre; line-height: 1.55; }
-  .diff-del  { background: #2a1818; color: #c27f7f; }
-  .diff-add  { background: #182a1e; color: #7fc27f; }
-  .diff-sep  { padding: 3px 10px; font-family: var(--mono); font-size: 11px; color: #3a3a42; text-align: center; letter-spacing: 2px; }
+  .diff-line { padding: 1px 10px; font-family: var(--cc-font-mono); font-size: 11.5px; white-space: pre; line-height: 1.55; }
+  .diff-del  { background: var(--cc-diff-del-bg); color: var(--cc-diff-del-fg); }
+  .diff-add  { background: var(--cc-diff-add-bg); color: var(--cc-diff-add-fg); }
+  .diff-sep  { padding: 3px 10px; font-family: var(--cc-font-mono); font-size: 11px; color: var(--cc-fg-faint); text-align: center; letter-spacing: 2px; }
 
   /* ── Tool block ───────────────────────────── */
-  .tool-block { margin: 7px 0 3px; border: 1px solid #2a2a2f; border-radius: 6px; overflow: hidden; background: var(--tool-bg); }
+  .tool-block { margin: 7px 0 3px; border: 1px solid var(--cc-border-subtle); border-radius: var(--cc-radius); overflow: hidden; background: var(--cc-bg-elevated); }
+  .tool-block.tool-error { border-color: var(--cc-error); }
 
-  .tool-hdr { display: flex; align-items: center; gap: 7px; padding: 6px 10px; cursor: pointer; color: #888; font-size: 12px; user-select: none; }
-  .tool-hdr:hover { background: #282830; }
+  .tool-hdr { display: flex; align-items: center; gap: 7px; padding: 6px 10px; cursor: pointer; color: var(--cc-fg-muted); font-size: 12px; user-select: none; }
+  .tool-hdr:hover { background: var(--cc-bg-hover); }
 
-  .tool-chev { font-size: 8px; color: var(--text-dim); transition: transform 0.15s; display: inline-block; }
+  .tool-chev { font-size: 8px; color: var(--cc-fg-faint); transition: transform 0.15s; display: inline-block; }
   .tool-hdr.open .tool-chev { transform: rotate(90deg); }
-  .tool-nm { font-family: var(--mono); font-size: 12px; }
+  .tool-nm { font-family: var(--cc-font-mono); font-size: 12px; }
+  .tool-summary { color: var(--cc-fg-faint); font-size: 11px; margin-left: auto; }
+  .tool-bash-cmd { font-family: var(--cc-font-mono); font-size: 12px; color: var(--cc-fg); }
+  .tool-exit-badge { margin-left: auto; font-size: 11px; font-weight: 700; }
+  .tool-exit-badge.ok  { color: var(--cc-success); }
+  .tool-exit-badge.err { color: var(--cc-error); }
 
-  .tool-bdy { display: none; padding: 8px 10px; font-family: var(--mono); font-size: 11.5px; color: #90a890; white-space: pre-wrap; border-top: 1px solid #2a2a2f; overflow-x: auto; max-height: 200px; }
+  .tool-spinner { width: 10px; height: 10px; border: 1.5px solid var(--cc-border); border-top-color: var(--cc-accent); border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .tool-bdy { display: none; padding: 8px 10px; font-family: var(--cc-font-mono); font-size: 11.5px; color: var(--cc-fg-muted); white-space: pre-wrap; border-top: 1px solid var(--cc-border-subtle); overflow-x: auto; max-height: 300px; overflow-y: auto; }
   .tool-hdr.open + .tool-bdy { display: block; }
 
-  .tool-actions { display: flex; gap: 6px; padding: 6px 10px; background: #1e1e22; border-top: 1px solid #2a2a2f; }
-  .tool-btn { padding: 3px 10px; border-radius: 4px; border: 1px solid; cursor: pointer; font-size: 11.5px; font-family: var(--sans); }
+  .tool-actions { display: flex; gap: 6px; padding: 6px 10px; background: var(--cc-bg-input); border-top: 1px solid var(--cc-border-subtle); }
+  .tool-btn { padding: 3px 10px; border-radius: var(--cc-radius-sm); border: 1px solid; cursor: pointer; font-size: 11.5px; font-family: var(--cc-font-ui); }
   .tool-btn:disabled { opacity: 0.35; cursor: default; }
-  .t-accept { background:#182a1e; color:#5a9e66; border-color:#264832; }
-  .t-reject { background:#2a1818; color:#9e5a5a; border-color:#48262e; }
+  .t-accept { background: var(--cc-diff-add-bg); color: var(--cc-success); border-color: var(--cc-diff-add-gutter); }
+  .t-reject { background: var(--cc-diff-del-bg); color: var(--cc-error); border-color: var(--cc-diff-del-gutter); }
 
-  /* ── Error ────────────────────────────────── */
-  .err-block { margin: 8px 16px; padding: 8px 12px; background: var(--err-bg); border-left: 3px solid #a84848; border-radius: 2px; font-size: 12px; color: #d07070; }
+  .tool-result { padding: 7px 10px; font-family: var(--cc-font-mono); font-size: 11.5px; color: var(--cc-fg-muted); white-space: pre-wrap; border-top: 1px solid var(--cc-border-subtle); overflow-x: auto; max-height: 300px; overflow-y: auto; }
+  .tool-result.error { color: var(--cc-diff-del-fg); border-left: 3px solid var(--cc-error); }
+
+  /* ── Turn summary / dividers / error ─────── */
+  .turn-summary { font-size: 11px; color: var(--cc-fg-faint); margin-top: 6px; }
+
+  .thread-divider { display: flex; align-items: center; gap: 8px; margin: 10px 16px; font-size: 10.5px; color: var(--cc-fg-faint); letter-spacing: 0.03em; }
+  .thread-divider::before, .thread-divider::after { content: ''; flex: 1; height: 1px; background: var(--cc-border-subtle); }
+
+  .rewound-block { opacity: 0.4; }
+
+  .err-block { margin: 8px 16px; padding: 8px 12px; background: var(--cc-diff-del-bg); border-left: 3px solid var(--cc-error); border-radius: 2px; font-size: 12px; color: var(--cc-diff-del-fg); }
+
+  /* ── Scroll-to-bottom pill ─────────────────── */
+  #scroll-pill { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%) translateY(8px); background: var(--cc-accent-muted); border: 1px solid var(--cc-accent-border); color: var(--cc-accent); font-size: 11.5px; padding: 5px 12px; border-radius: 999px; cursor: pointer; opacity: 0; pointer-events: none; transition: opacity 0.15s, transform 0.15s; }
+  #scroll-pill.visible { opacity: 1; pointer-events: auto; transform: translateX(-50%) translateY(0); }
 
   /* ── Skills popup ─────────────────────────── */
   #skills-popup {
     position: fixed;
-    background: #202025;
-    border: 1px solid #3a3a45;
+    background: var(--cc-bg-elevated);
+    border: 1px solid var(--cc-border);
     border-radius: 8px;
     overflow: hidden;
     z-index: 999;
@@ -107,113 +305,185 @@
   }
   #skills-popup.hidden { display: none; }
   #skills-popup::-webkit-scrollbar { width: 3px; }
-  #skills-popup::-webkit-scrollbar-thumb { background: #444; border-radius: 2px; }
+  #skills-popup::-webkit-scrollbar-thumb { background: var(--cc-border); border-radius: 2px; }
 
   .sk-item { display: flex; align-items: center; gap: 10px; padding: 7px 12px; cursor: pointer; transition: background 0.1s; }
-  .sk-item:hover, .sk-item.active { background: #2c2c35; }
-  .sk-cmd { font-family: var(--mono); font-size: 12px; color: var(--accent); min-width: 120px; flex-shrink: 0; }
-  .sk-desc { font-size: 11.5px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sk-item:hover, .sk-item.active { background: var(--cc-bg-hover); }
+  .sk-item.disabled { cursor: default; opacity: 0.4; }
+  .sk-item.disabled:hover, .sk-item.disabled.active { background: none; }
+  .sk-cmd { font-family: var(--cc-font-mono); font-size: 12px; color: var(--cc-accent); min-width: 120px; flex-shrink: 0; }
+  .sk-desc { font-size: 11.5px; color: var(--cc-fg-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sk-section-hdr { padding: 6px 12px 3px; font-size: 10px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--cc-fg-faint); }
+  .sk-file-icon { flex-shrink: 0; }
+  .sk-file-name { font-family: var(--cc-font-mono); font-size: 12px; color: var(--cc-fg); font-weight: 600; }
+  .sk-file-path { font-size: 11px; color: var(--cc-fg-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── Attachment chips ──────────────────────── */
+  #attach-row { display: none; flex-wrap: wrap; gap: 5px; padding: 6px 10px 0; }
+  #attach-row.visible { display: flex; }
+  .attach-chip { display: flex; align-items: center; gap: 5px; background: var(--cc-bg-elevated); border: 1px solid var(--cc-border); border-radius: 5px; padding: 2px 6px 2px 8px; font-size: 11.5px; color: var(--cc-fg-muted); }
+  .attach-chip button { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; font-size: 11px; padding: 0 2px; }
+  .attach-chip button:hover { color: var(--cc-error); }
+
+  /* ── Selection indicator ───────────────────── */
+  #sel-indicator { display: none; align-items: center; gap: 6px; padding: 5px 10px 0; font-size: 11.5px; color: var(--cc-fg-muted); }
+  #sel-indicator.visible { display: flex; }
+  #sel-indicator .sel-text { cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #sel-indicator .sel-text:hover { color: var(--cc-fg); text-decoration: underline; }
+  #sel-eye { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; font-size: 12px; margin-left: auto; padding: 0 3px; }
+  #sel-eye:hover { color: var(--cc-fg); }
+  #sel-indicator.hidden-ctx .sel-text { opacity: 0.4; text-decoration: line-through; }
+
+  /* ── Dropdown menu (mode / model) ──────────── */
+  .dropdown-menu { position: fixed; background: var(--cc-bg-elevated); border: 1px solid var(--cc-border); border-radius: 8px; overflow: hidden; z-index: 999; box-shadow: 0 -6px 24px rgba(0,0,0,0.5); min-width: 170px; }
+  .dropdown-menu.hidden { display: none; }
+  .dd-item { display: flex; flex-direction: column; gap: 1px; padding: 7px 12px; cursor: pointer; font-size: 12px; color: var(--cc-fg); }
+  .dd-item:hover, .dd-item.active { background: var(--cc-bg-hover); }
+  .dd-item.danger { color: var(--cc-error); }
+  .dd-item-desc { font-size: 10.5px; color: var(--cc-fg-faint); }
+
+  #mode-btn.danger { color: var(--cc-error); }
+
+  /* ── Context meter ─────────────────────────── */
+  #ctx-meter { display: none; align-items: center; gap: 5px; cursor: pointer; padding: 2px 4px; border-radius: 4px; }
+  #ctx-meter.visible { display: flex; }
+  #ctx-meter:hover { background: var(--cc-bg-hover); }
+  #ctx-track { width: 34px; height: 4px; background: var(--cc-bg-elevated); border-radius: 2px; overflow: hidden; display: flex; gap: 1px; }
+  #ctx-track .seg { flex: 1; background: var(--cc-border); }
+  #ctx-track .seg.filled { background: var(--cc-success); }
+  #ctx-track.warn .seg.filled { background: var(--cc-warning); }
+  #ctx-track.err .seg.filled { background: var(--cc-error); }
+  #ctx-pct { font-size: 10.5px; color: var(--cc-fg-faint); }
 
   /* ── Input wrap ───────────────────────────── */
   #input-wrap { flex-shrink: 0; padding: 8px 12px 10px; }
 
-  #input-box { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; background: #1f1f23; }
-  #input-box:focus-within { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(207,122,74,0.18); }
+  #input-box { border: 1px solid var(--cc-border); border-radius: 10px; overflow: hidden; transition: border-color 0.15s, box-shadow 0.15s; background: var(--cc-bg-input); }
+  #input-box:focus-within { border-color: var(--cc-accent); box-shadow: 0 0 0 2px var(--cc-accent-muted); }
 
   /* ── Textarea row ─────────────────────────── */
   #textarea-row { display: flex; align-items: flex-start; padding: 2px 4px 0 4px; }
 
-  #prompt { flex: 1; background: transparent; color: var(--text); border: none; outline: none; resize: none; padding: 9px 6px 6px 8px; font-family: var(--sans); font-size: 13px; line-height: 1.55; min-height: 36px; max-height: 200px; caret-color: var(--accent); }
-  #prompt::placeholder { color: #484850; }
+  #prompt { flex: 1; background: transparent; color: var(--cc-fg); border: none; outline: none; resize: none; padding: 9px 6px 6px 8px; font-family: var(--cc-font-ui); font-size: 13px; line-height: 1.55; min-height: 36px; max-height: 178px; overflow-y: auto; caret-color: var(--cc-accent); }
+  #prompt::placeholder { color: var(--cc-fg-faint); }
   #prompt:disabled { opacity: 0.45; }
 
-  #mic-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 9px 8px 6px; display: flex; align-items: flex-start; flex-shrink: 0; opacity: 0.5; }
+  #mic-btn { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; padding: 9px 8px 6px; display: flex; align-items: flex-start; flex-shrink: 0; opacity: 0.5; }
   #mic-btn:hover { opacity: 0.9; }
 
   /* ── Action bar ───────────────────────────── */
-  #action-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; gap: 4px; border-top: 1px solid #252529; padding-top: 5px; }
+  #action-bar { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; gap: 4px; border-top: 1px solid var(--cc-border-subtle); padding-top: 5px; }
 
   #action-left { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
 
-  .ab-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; width: 26px; height: 22px; border-radius: 5px; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background 0.1s, color 0.1s; flex-shrink: 0; font-family: var(--sans); }
-  .ab-btn:hover { background: #2a2a32; color: var(--text); }
+  .ab-btn { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; width: 26px; height: 22px; border-radius: 5px; font-size: 14px; display: flex; align-items: center; justify-content: center; transition: background 0.1s, color 0.1s; flex-shrink: 0; font-family: var(--cc-font-ui); }
+  .ab-btn:hover { background: var(--cc-bg-hover); color: var(--cc-fg); }
 
-  .ab-sep { width: 1px; height: 14px; background: #333; margin: 0 2px; flex-shrink: 0; }
+  .ab-sep { width: 1px; height: 14px; background: var(--cc-border); margin: 0 2px; flex-shrink: 0; }
 
-  #ctx-pill { display: none; align-items: center; gap: 4px; background: var(--pill-bg); border: 1px solid #38383f; border-radius: 5px; padding: 1px 7px 1px 5px; font-size: 11.5px; color: #9090a0; cursor: pointer; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+  #ctx-pill { display: none; align-items: center; gap: 4px; background: var(--cc-bg-elevated); border: 1px solid var(--cc-border); border-radius: 5px; padding: 1px 7px 1px 5px; font-size: 11.5px; color: var(--cc-fg-muted); cursor: pointer; white-space: nowrap; max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
   #ctx-pill.visible { display: flex; }
-  #ctx-pill:hover { border-color: #555; color: var(--text); }
+  #ctx-pill:hover { border-color: var(--cc-fg-faint); color: var(--cc-fg); }
 
   #action-right { display: flex; align-items: center; gap: 5px; flex-shrink: 0; margin-left: auto; }
 
-  #diag-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; opacity: 0.5; transition: opacity 0.1s, color 0.1s; }
+  #diag-btn { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; font-size: 13px; padding: 2px 4px; border-radius: 4px; opacity: 0.5; transition: opacity 0.1s, color 0.1s; }
   #diag-btn:hover { opacity: 0.9; }
-  #diag-btn.active { color: var(--accent); opacity: 1; }
+  #diag-btn.active { color: var(--cc-accent); opacity: 1; }
 
-  #mode-btn { background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 11.5px; font-family: var(--sans); padding: 2px 6px; border-radius: 4px; white-space: nowrap; transition: color 0.1s, background 0.1s; }
-  #mode-btn:hover { color: var(--text); background: #2a2a32; }
+  #mode-btn, #model-btn { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; font-size: 11.5px; font-family: var(--cc-font-ui); padding: 2px 6px; border-radius: 4px; white-space: nowrap; transition: color 0.1s, background 0.1s; }
+  #mode-btn:hover, #model-btn:hover { color: var(--cc-fg); background: var(--cc-bg-hover); }
 
-  #send-btn { width: 26px; height: 26px; background: var(--accent); border: none; border-radius: 6px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; transition: background 0.12s; }
-  #send-btn:hover:not(:disabled) { background: var(--accent-h); }
+  #send-btn { width: 26px; height: 26px; background: var(--cc-accent); border: none; border-radius: 6px; color: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700; line-height: 1; flex-shrink: 0; transition: background 0.12s, filter 0.12s; }
+  #send-btn:hover:not(:disabled) { filter: brightness(1.12); }
   #send-btn:disabled { opacity: 0.3; cursor: default; }
+  #send-btn.mode-accept { background: var(--cc-success); }
+  #send-btn.mode-plan   { background: var(--cc-warning); }
+  #send-btn.mode-danger { background: var(--cc-error); }
 
-  #stop-btn { width: 26px; height: 26px; background: #2a2a32; border: 1px solid #444; border-radius: 6px; color: var(--text); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
-  #stop-btn:hover { background: #35353f; }
+  #stop-btn { width: 26px; height: 26px; background: var(--cc-bg-hover); border: 1px solid var(--cc-border); border-radius: 6px; color: var(--cc-fg); cursor: pointer; display: none; align-items: center; justify-content: center; font-size: 9px; flex-shrink: 0; }
+  #stop-btn:hover { background: var(--cc-bg-active); }
   #stop-btn.visible { display: flex; }
 </style>
 </head>
 <body>
 
+<!-- ── Header bar ───────────────────────── -->
+<div id="header-bar">
+  <div id="header-left" title="Confer">
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <g stroke="var(--cc-accent)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="2.5" width="12" height="8" rx="3"/>
+        <path d="M5.5 10.5 L5.5 13.5 L9 10.5"/>
+      </g>
+    </svg>
+  </div>
+  <div id="header-right">
+    <button class="hdr-btn" id="new-session-btn" title="New conversation">＋</button>
+    <button class="hdr-btn" id="history-btn" title="Session history">
+      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8" cy="8.5" r="5.5"/>
+        <polyline points="8,5.5 8,8.5 10.5,10"/>
+        <path d="M6 1.5 h4" stroke-width="1.3"/>
+      </svg>
+    </button>
+    <button class="hdr-btn" id="onboarding-btn" title="Learn Confer">🎓</button>
+    <button class="hdr-btn" id="overflow-btn" title="More">⋯</button>
+  </div>
+</div>
+<div id="overflow-menu" class="dropdown-menu hidden"></div>
+
+<!-- ── Overlay (Usage / MCP / Plugins / Session history / Onboarding) ── -->
+<div id="overlay-backdrop" class="hidden">
+  <div id="overlay-card">
+    <div id="overlay-hdr"><span id="overlay-title"></span><button id="overlay-close" title="Close">✕</button></div>
+    <div id="overlay-body"></div>
+  </div>
+</div>
+
 <!-- ── Empty state ──────────────────────── -->
 <div id="empty">
   <div id="empty-logo">
-    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
-      <line x1="11" y1="2"   x2="11"  y2="20"  stroke="#CF7A4A" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="2"  y1="11"  x2="20"  y2="11"  stroke="#CF7A4A" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="4.5" y1="4.5" x2="17.5" y2="17.5" stroke="#CF7A4A" stroke-width="2.2" stroke-linecap="round"/>
-      <line x1="17.5" y1="4.5" x2="4.5" y2="17.5" stroke="#CF7A4A" stroke-width="2.2" stroke-linecap="round"/>
+    <svg width="26" height="26" viewBox="0 0 16 16" fill="none">
+      <rect class="logo-stroke" x="2" y="2.5" width="12" height="8" rx="3" stroke-width="1.4" stroke-linejoin="round"/>
+      <path class="logo-stroke" d="M5.5 10.5 L5.5 13.5 L9 10.5" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
     </svg>
     Confer
   </div>
-
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 16" width="72" height="96" shape-rendering="crispEdges" style="image-rendering:pixelated">
-    <rect x="5" y="0" width="2" height="1" fill="#D4814A"/>
-    <rect x="4" y="1" width="4" height="1" fill="#D4814A"/>
-    <rect x="2" y="2" width="8" height="6" fill="#D4814A"/>
-    <rect x="3" y="3" width="2" height="2" fill="#1c1c1e"/>
-    <rect x="7" y="3" width="2" height="2" fill="#1c1c1e"/>
-    <rect x="4" y="3" width="1" height="1" fill="#E8A878"/>
-    <rect x="8" y="3" width="1" height="1" fill="#E8A878"/>
-    <rect x="3" y="6" width="6" height="1" fill="#1c1c1e"/>
-    <rect x="3" y="8" width="6" height="5" fill="#D4814A"/>
-    <rect x="0" y="9" width="3" height="2" fill="#D4814A"/>
-    <rect x="9" y="9" width="3" height="2" fill="#D4814A"/>
-    <rect x="3" y="13" width="2" height="2" fill="#D4814A"/>
-    <rect x="7" y="13" width="2" height="2" fill="#D4814A"/>
-    <rect x="2" y="14" width="3" height="2" fill="#D4814A"/>
-    <rect x="7" y="14" width="3" height="2" fill="#D4814A"/>
-  </svg>
 
   <p id="empty-hint">
     Highlight any text and press <kbd>Shift</kbd>+<kbd>Alt</kbd>+<kbd>C</kbd><br>
     to chat about it
   </p>
+
+  <div id="suggested"></div>
 </div>
 
 <!-- ── Thread ───────────────────────────── -->
-<div id="thread"></div>
+<div id="thread">
+  <div id="scroll-pill">↓ New messages</div>
+</div>
 
 <!-- ── Persistent budget bar ────────────── -->
 <div id="budget-bar"></div>
 
-<!-- ── Skills popup (fixed, positioned by JS) ── -->
+<!-- ── Skills / @-mention popup (fixed, positioned by JS) ── -->
 <div id="skills-popup" class="hidden"></div>
+
+<!-- ── Mode / model dropdowns (fixed, positioned by JS) ── -->
+<div id="mode-menu" class="dropdown-menu hidden"></div>
+<div id="model-menu" class="dropdown-menu hidden"></div>
 
 <!-- ── Input ────────────────────────────── -->
 <div id="input-wrap">
   <div id="input-box">
+    <div id="attach-row"></div>
+    <div id="sel-indicator">
+      <span class="sel-text"></span>
+      <button id="sel-eye" title="Hide from Claude">👁</button>
+    </div>
     <div id="textarea-row">
-      <textarea id="prompt" placeholder="Message Claude…" rows="1"></textarea>
+      <textarea id="prompt" placeholder="Ask Claude…" rows="1"></textarea>
       <button id="mic-btn" tabindex="-1" title="Voice input">
         <svg width="13" height="13" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-linecap="round">
           <rect x="4.5" y="0.5" width="5" height="7" rx="2.5" stroke-width="1.2"/>
@@ -232,9 +502,19 @@
         <div id="ctx-pill" title="Click to clear context"></div>
       </div>
       <div id="action-right">
+        <div id="ctx-meter" title="Context window usage">
+          <div id="ctx-track"><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div><div class="seg"></div></div>
+          <span id="ctx-pct"></span>
+        </div>
         <button id="diag-btn" title="Toggle diagnostics">⚡</button>
-        <button id="mode-btn">Ask before edits</button>
-        <button id="send-btn" title="Send (Enter)">↑</button>
+        <button id="model-btn" title="Model">Sonnet</button>
+        <button id="mode-btn" title="Permission mode">Ask before edits</button>
+        <button id="send-btn" title="Send (Enter)">
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="8" y1="13" x2="8" y2="3"/>
+            <polyline points="3.5,7.5 8,3 12.5,7.5"/>
+          </svg>
+        </button>
         <button id="stop-btn" title="Stop (Esc)">■</button>
       </div>
     </div>
@@ -244,26 +524,151 @@
 <script>
 'use strict';
 
-const $empty     = document.getElementById('empty');
-const $thread    = document.getElementById('thread');
-const $budgetBar = document.getElementById('budget-bar');
-const $prompt  = document.getElementById('prompt');
-const $popup   = document.getElementById('skills-popup');
-const $addBtn  = document.getElementById('add-btn');
-const $cmdBtn  = document.getElementById('cmd-btn');
-const $ctxPill = document.getElementById('ctx-pill');
-const $diagBtn = document.getElementById('diag-btn');
-const $modeBtn = document.getElementById('mode-btn');
-const $sendBtn = document.getElementById('send-btn');
-const $stopBtn = document.getElementById('stop-btn');
+const $empty      = document.getElementById('empty');
+const $suggested   = document.getElementById('suggested');
+const $thread      = document.getElementById('thread');
+const $scrollPill  = document.getElementById('scroll-pill');
+const $budgetBar   = document.getElementById('budget-bar');
+const $prompt   = document.getElementById('prompt');
+const $popup    = document.getElementById('skills-popup');
+const $addBtn   = document.getElementById('add-btn');
+const $cmdBtn   = document.getElementById('cmd-btn');
+const $ctxPill  = document.getElementById('ctx-pill');
+const $diagBtn  = document.getElementById('diag-btn');
+const $modeBtn  = document.getElementById('mode-btn');
+const $modelBtn = document.getElementById('model-btn');
+const $modeMenu  = document.getElementById('mode-menu');
+const $modelMenu = document.getElementById('model-menu');
+const $newSessionBtn = document.getElementById('new-session-btn');
+const $historyBtn    = document.getElementById('history-btn');
+const $onboardingBtn = document.getElementById('onboarding-btn');
+const $overflowBtn   = document.getElementById('overflow-btn');
+const $overflowMenu  = document.getElementById('overflow-menu');
+const $overlayBackdrop = document.getElementById('overlay-backdrop');
+const $overlayTitle    = document.getElementById('overlay-title');
+const $overlayBody     = document.getElementById('overlay-body');
+const $overlayClose    = document.getElementById('overlay-close');
+const $sendBtn  = document.getElementById('send-btn');
+const $stopBtn  = document.getElementById('stop-btn');
 const $inputBox = document.getElementById('input-box');
+const $attachRow = document.getElementById('attach-row');
+const $selIndicator = document.getElementById('sel-indicator');
+const $selEye        = document.getElementById('sel-eye');
+const $ctxMeter = document.getElementById('ctx-meter');
+const $ctxTrack = document.getElementById('ctx-track');
+const $ctxPct   = document.getElementById('ctx-pct');
 
-let currentBlock = null;
 let streaming    = false;
 let diagEnabled  = false;
 let currentMode  = 'default';
+let currentModel = 'default';
+let allowBypass  = false;
+let ctrlEnterToSend = false;
 let popupIdx     = 0;
 let popupItems   = [];
+let pinnedToBottom = true;
+let hasSentFirstMessage = false;
+
+/* ── Attachments ──────────────────────── */
+let attachments = [];
+
+function addAttachment(path) {
+  if (attachments.some(a => a.path === path)) return;
+  attachments.push({ path: path, name: path.split('/').pop() });
+  renderAttachments();
+}
+
+function removeAttachment(path) {
+  attachments = attachments.filter(a => a.path !== path);
+  renderAttachments();
+}
+
+function renderAttachments() {
+  $attachRow.innerHTML = '';
+  attachments.forEach(function(a) {
+    const chip = document.createElement('div');
+    chip.className = 'attach-chip';
+    chip.innerHTML = '<span>📄 ' + esc(a.name) + '</span><button type="button">✕</button>';
+    chip.querySelector('button').addEventListener('click', function() { removeAttachment(a.path); });
+    $attachRow.appendChild(chip);
+  });
+  $attachRow.classList.toggle('visible', attachments.length > 0);
+}
+
+['dragover'].forEach(function(evt) {
+  $inputBox.addEventListener(evt, function(e) { e.preventDefault(); });
+  $thread.addEventListener(evt, function(e) { e.preventDefault(); });
+});
+[$inputBox, $thread].forEach(function(el) {
+  el.addEventListener('drop', function(e) {
+    e.preventDefault();
+    const files = e.dataTransfer && e.dataTransfer.files;
+    if (!files || !files.length) return;
+    Array.from(files).forEach(function(f) {
+      if (f.path) addAttachment(f.path);
+    });
+  });
+});
+
+/* ── Selection indicator ──────────────── */
+let currentSelection = null; // { ref, fileName, lines }
+let selectionHidden = false;
+
+window.setSelectionIndicator = function(data) {
+  currentSelection = data;
+  if (!data) {
+    $selIndicator.classList.remove('visible');
+    return;
+  }
+  $selIndicator.querySelector('.sel-text').textContent =
+    '⧉ ' + data.lines + (data.lines === 1 ? ' line' : ' lines') + ' from ' + data.fileName;
+  $selIndicator.classList.add('visible');
+};
+
+$selIndicator.querySelector('.sel-text').addEventListener('click', function() {
+  if (currentSelection && window.__openMentionBridge__) window.__openMentionBridge__(currentSelection.ref);
+});
+
+$selEye.addEventListener('click', function() {
+  selectionHidden = !selectionHidden;
+  $selEye.textContent = selectionHidden ? '🙈' : '👁';
+  $selIndicator.classList.toggle('hidden-ctx', selectionHidden);
+});
+
+/* ── Turn / streaming state ──────────── */
+const toolBlocksById = {};
+let currentBlock      = null;   // outer wrapper for the whole assistant turn
+let activeMode         = null;  // 'thinking' | 'text' | null
+let activeThinkingEl    = null;
+let activeThinkingRaw   = '';
+let activeThinkingStart = 0;
+let activeTextEl        = null;
+let activeTextRaw       = '';
+let turnToolCount       = 0;
+let turnStartTime       = 0;
+
+/* ── Suggested prompts (empty state) ─── */
+const SUGGESTED_PROMPTS = [
+  'Explain what this file does',
+  'Find and fix the bug in the current selection',
+  'Write tests for the selected function',
+];
+
+function renderSuggested() {
+  $suggested.innerHTML = '';
+  SUGGESTED_PROMPTS.forEach(function(p) {
+    const btn = document.createElement('button');
+    btn.className = 'sg-prompt';
+    btn.textContent = p;
+    btn.addEventListener('click', function() {
+      $prompt.value = p;
+      autoResize();
+      $prompt.focus();
+    });
+    $suggested.appendChild(btn);
+  });
+}
+renderSuggested();
 
 /* ── Budget tracking ─────────────────── */
 const FIVE_H_BUDGET = 2.00;
@@ -272,9 +677,9 @@ let fiveHourCost = 0;
 let weeklyCost   = 0;
 
 function budgetColor(pct) {
-  if (pct >= 85) return '#EF5350';
-  if (pct >= 60) return '#FFA726';
-  return '#66BB6A';
+  if (pct >= 85) return 'var(--cc-error)';
+  if (pct >= 60) return 'var(--cc-warning)';
+  return 'var(--cc-success)';
 }
 
 function renderBudget(cost) {
@@ -299,15 +704,23 @@ function renderBudget(cost) {
   $budgetBar.classList.add('visible');
 }
 
-/* ── Skills popup ────────────────────── */
-const BUILTIN = [
-  { cmd: '/help',    desc: 'Show help and documentation' },
-  { cmd: '/clear',   desc: 'Clear conversation history' },
-  { cmd: '/compact', desc: 'Compact and summarize the conversation' },
-  { cmd: '/memory',  desc: 'Edit memory files' },
-  { cmd: '/config',  desc: 'Open configuration' },
-  { cmd: '/cost',    desc: 'Show session cost' },
-  { cmd: '/review',  desc: 'Review code changes' },
+/* ── Slash command menu (sectioned) ──── */
+const COMMAND_SECTIONS = [
+  { label: 'Actions', items: [
+    { cmd: '/clear',   desc: 'Clear conversation history' },
+    { cmd: '/compact', desc: 'Compact and summarize the conversation' },
+  ]},
+  { label: 'Info', items: [
+    { cmd: '/cost',  desc: 'Show session cost' },
+    { cmd: '/usage', desc: 'Usage & account details', action: showUsageOverlay },
+  ]},
+  { label: 'Customize', items: [
+    { cmd: '/memory',  desc: 'Edit memory files' },
+    { cmd: '/config',  desc: 'Open configuration' },
+    { cmd: '/mcp',     desc: 'Manage MCP servers', action: showMcpOverlay },
+    { cmd: '/plugins', desc: 'Manage plugins', action: showPluginsOverlay },
+    { cmd: '/review',  desc: 'Review code changes' },
+  ]},
 ];
 let userSkills = [];
 
@@ -315,10 +728,13 @@ window.setSkills = function(skills) {
   userSkills = Array.isArray(skills) ? skills : [];
 };
 
-function allCommands() {
-  const merged = [...userSkills, ...BUILTIN];
-  return merged.sort((a, b) => a.cmd.localeCompare(b.cmd));
+function commandSections() {
+  return userSkills.length
+    ? [{ label: 'Skills', items: userSkills }, ...COMMAND_SECTIONS]
+    : COMMAND_SECTIONS;
 }
+
+let popupMode = 'slash'; // 'slash' | 'at'
 
 function slashContext() {
   const val = $prompt.value;
@@ -327,35 +743,90 @@ function slashContext() {
   return before.match(/(^|\n)(\/\S*)$/);
 }
 
-function showPopup(query) {
-  const q = query.toLowerCase();
-  const filtered = allCommands().filter(c =>
-    c.cmd.slice(1).startsWith(q) || c.desc.toLowerCase().includes(q)
-  );
-  if (filtered.length === 0) { hidePopup(); return; }
+function atContext() {
+  const val = $prompt.value;
+  const pos = $prompt.selectionStart;
+  const before = val.slice(0, pos);
+  return before.match(/(^|\s)@(\S*)$/);
+}
 
-  $popup.innerHTML = '';
-  popupItems = filtered;
-  popupIdx = 0;
-  filtered.forEach(function(c, i) {
-    const item = document.createElement('div');
-    item.className = 'sk-item' + (i === 0 ? ' active' : '');
-    item.innerHTML =
-      '<span class="sk-cmd">' + esc(c.cmd) + '</span>' +
-      '<span class="sk-desc">' + esc(c.desc) + '</span>';
-    item.addEventListener('mousedown', function(e) {
-      e.preventDefault();
-      insertCmd(c.cmd);
-    });
-    $popup.appendChild(item);
-  });
-
+function positionPopup() {
   const boxRect = $inputBox.getBoundingClientRect();
   $popup.style.left   = boxRect.left + 'px';
   $popup.style.right  = (window.innerWidth - boxRect.right) + 'px';
   $popup.style.bottom = (window.innerHeight - boxRect.top + 6) + 'px';
+}
+
+function showSlashPopup(query) {
+  popupMode = 'slash';
+  const q = query.toLowerCase();
+  $popup.innerHTML = '';
+  popupItems = [];
+
+  commandSections().forEach(function(section) {
+    const filtered = section.items.filter(c =>
+      c.cmd.slice(1).toLowerCase().startsWith(q) || c.desc.toLowerCase().includes(q)
+    );
+    if (!filtered.length) return;
+    const hdr = document.createElement('div');
+    hdr.className = 'sk-section-hdr';
+    hdr.textContent = section.label;
+    $popup.appendChild(hdr);
+    filtered.forEach(function(c) {
+      const item = document.createElement('div');
+      item.className = 'sk-item' + (c.disabled ? ' disabled' : '');
+      if (c.disabled) item.title = 'Coming soon';
+      item.innerHTML =
+        '<span class="sk-cmd">' + esc(c.cmd) + '</span>' +
+        '<span class="sk-desc">' + esc(c.desc) + '</span>';
+      if (!c.disabled) {
+        item.addEventListener('mousedown', function(e) {
+          e.preventDefault();
+          if (c.action) { hidePopup(); c.action(); } else { insertCmd(c.cmd); }
+        });
+        popupItems.push(item);
+      }
+      $popup.appendChild(item);
+    });
+  });
+
+  if (!popupItems.length) { hidePopup(); return; }
+  popupIdx = 0;
+  popupItems[0].classList.add('active');
+  positionPopup();
   $popup.classList.remove('hidden');
 }
+
+function showAtPopup(query) {
+  popupMode = 'at';
+  if (!window.__fileSearchBridge__) return;
+  window.__fileSearchBridge__(query);
+}
+
+window.receiveFileSearchResults = function(json) {
+  if (popupMode !== 'at') return;
+  let matches = [];
+  try { matches = JSON.parse(json); } catch(_) {}
+  matches = Array.isArray(matches) ? matches : [];
+  $popup.innerHTML = '';
+  popupItems = [];
+  if (!matches.length) { hidePopup(); return; }
+  matches.forEach(function(m) {
+    const item = document.createElement('div');
+    item.className = 'sk-item';
+    item.innerHTML =
+      '<span class="sk-file-icon">' + (m.isDir ? '📁' : '📄') + '</span>' +
+      '<span class="sk-file-name">' + esc(m.name) + (m.isDir ? '/' : '') + '</span>' +
+      '<span class="sk-file-path">' + esc(m.path) + '</span>';
+    item.addEventListener('mousedown', function(e) { e.preventDefault(); insertMention(m.path); });
+    popupItems.push(item);
+    $popup.appendChild(item);
+  });
+  popupIdx = 0;
+  popupItems[0].classList.add('active');
+  positionPopup();
+  $popup.classList.remove('hidden');
+};
 
 function hidePopup() {
   $popup.classList.add('hidden');
@@ -364,12 +835,17 @@ function hidePopup() {
 }
 
 function movePopupSel(delta) {
-  const items = $popup.querySelectorAll('.sk-item');
-  if (!items.length) return;
-  items[popupIdx].classList.remove('active');
-  popupIdx = (popupIdx + delta + items.length) % items.length;
-  items[popupIdx].classList.add('active');
-  items[popupIdx].scrollIntoView({ block: 'nearest' });
+  if (!popupItems.length) return;
+  popupItems[popupIdx].classList.remove('active');
+  popupIdx = (popupIdx + delta + popupItems.length) % popupItems.length;
+  popupItems[popupIdx].classList.add('active');
+  popupItems[popupIdx].scrollIntoView({ block: 'nearest' });
+}
+
+function acceptActivePopupItem() {
+  if (!popupItems.length) return false;
+  popupItems[popupIdx].dispatchEvent(new MouseEvent('mousedown'));
+  return true;
 }
 
 function insertCmd(cmd) {
@@ -389,61 +865,303 @@ function insertCmd(cmd) {
   autoResize();
 }
 
-/* ── Layout ──────────────────────────── */
+function insertMention(path) {
+  const val    = $prompt.value;
+  const pos    = $prompt.selectionStart;
+  const before = val.slice(0, pos);
+  const m      = before.match(/(^|\s)@(\S*)$/);
+  if (m) {
+    const start  = pos - m[2].length;
+    const after  = val.slice(pos);
+    $prompt.value = val.slice(0, start) + '@' + path + ' ' + after;
+    const newPos  = start + path.length + 2;
+    $prompt.selectionStart = $prompt.selectionEnd = newPos;
+  }
+  hidePopup();
+  $prompt.focus();
+  autoResize();
+}
+
+/* ── Layout / scrolling ──────────────── */
 function showThread() {
   $empty.classList.add('hidden');
   $thread.classList.add('visible');
 }
 
 function scrollEnd() {
-  $thread.scrollTop = $thread.scrollHeight;
+  if (pinnedToBottom) {
+    $thread.scrollTop = $thread.scrollHeight;
+    hideScrollPill();
+  } else {
+    showScrollPill();
+  }
 }
+
+function showScrollPill() { $scrollPill.classList.add('visible'); }
+function hideScrollPill()  { $scrollPill.classList.remove('visible'); }
+
+$thread.addEventListener('scroll', function() {
+  const dist = $thread.scrollHeight - $thread.scrollTop - $thread.clientHeight;
+  pinnedToBottom = dist < 40;
+  if (pinnedToBottom) hideScrollPill();
+});
+
+$scrollPill.addEventListener('click', function() {
+  pinnedToBottom = true;
+  $thread.scrollTop = $thread.scrollHeight;
+  hideScrollPill();
+});
 
 function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
-/* ── Message blocks ──────────────────── */
+/* ── Clipboard ────────────────────────── */
+function copyToClipboard(text) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); } catch(_) {}
+  ta.remove();
+}
+
+/* ── Lightweight markdown renderer ───── *
+ * Regex-based, not full CommonMark. Covers headings, bold/italic, inline
+ * code, fenced code blocks (plain mono — no grammar-aware highlighting),
+ * lists, blockquotes, links, and simple pipe tables. */
+function renderMarkdown(raw) {
+  const fences = [];
+  let text = raw.replace(/```([a-zA-Z0-9_+-]*)\n([\s\S]*?)(```|$)/g, function(_, lang, code) {
+    fences.push({ lang: lang || '', code: code.replace(/\n$/, '') });
+    return ' FENCE' + (fences.length - 1) + ' ';
+  });
+
+  const lines = esc(text).split('\n');
+  const out = [];
+  let para = [];
+  let list = null; // { tag, items }
+
+  function flushPara() {
+    if (para.length) { out.push('<p>' + para.join('\n') + '</p>'); para = []; }
+  }
+  function flushList() {
+    if (list) { out.push('<' + list.tag + '>' + list.items.map(i => '<li>' + i + '</li>').join('') + '</' + list.tag + '>'); list = null; }
+  }
+  function inline(s) {
+    return s
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/(?<![*\w])\*([^*\n]+)\*(?!\*)/g, '<em>$1</em>')
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>');
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const h = line.match(/^(#{1,3})\s+(.*)$/);
+    const ul = line.match(/^[-*]\s+(.*)$/);
+    const ol = line.match(/^\d+\.\s+(.*)$/);
+    const bq = line.match(/^&gt;\s?(.*)$/);
+
+    if (h) {
+      flushPara(); flushList();
+      out.push('<h' + h[1].length + '>' + inline(h[2]) + '</h' + h[1].length + '>');
+    } else if (ul) {
+      flushPara();
+      if (!list || list.tag !== 'ul') { flushList(); list = { tag: 'ul', items: [] }; }
+      list.items.push(inline(ul[1]));
+    } else if (ol) {
+      flushPara();
+      if (!list || list.tag !== 'ol') { flushList(); list = { tag: 'ol', items: [] }; }
+      list.items.push(inline(ol[1]));
+    } else if (bq) {
+      flushPara(); flushList();
+      out.push('<blockquote>' + inline(bq[1]) + '</blockquote>');
+    } else if (line.trim() === '') {
+      flushPara(); flushList();
+    } else {
+      flushList();
+      para.push(inline(line));
+    }
+  }
+  flushPara(); flushList();
+
+  let html = out.join('');
+  html = html.replace(/ FENCE(\d+) /g, function(_, idx) {
+    const f = fences[idx];
+    if (!f) return '';
+    const id = 'f' + idx + '_' + Math.random().toString(36).slice(2, 7);
+    return '<div class="md-pre"><div class="md-pre-hdr"><span>' + esc(f.lang || 'text') + '</span>' +
+      '<button class="md-copy" type="button">Copy</button></div>' +
+      '<pre><code>' + esc(f.code) + '</code></pre></div>';
+  });
+  return html;
+}
+
+/* ── Status word (client-side flourish — the CLI's own status words
+   are terminal-only decoration, not present in stream-json data) ── */
+const STATUS_WORDS = [
+  'Thinking', 'Pondering', 'Noodling', 'Percolating', 'Marinating', 'Ruminating',
+  'Concocting', 'Confabulating', 'Wibbling', 'Cogitating', 'Puttering', 'Mulling',
+  'Synthesizing', 'Untangling', 'Deliberating', 'Tinkering', 'Musing', 'Brewing',
+];
+let statusWordInterval = null;
+
+function startStatusWord(el) {
+  let idx = Math.floor(Math.random() * STATUS_WORDS.length);
+  el.textContent = STATUS_WORDS[idx] + '…';
+  statusWordInterval = setInterval(function() {
+    idx = (idx + 1) % STATUS_WORDS.length;
+    el.textContent = STATUS_WORDS[idx] + '…';
+  }, 1800);
+}
+
+function stopStatusWord() {
+  if (statusWordInterval) { clearInterval(statusWordInterval); statusWordInterval = null; }
+}
+
+/* ── Turn wrapper ─────────────────────── */
+function ensureTurnBlock() {
+  if (currentBlock) return currentBlock;
+  currentBlock = document.createElement('div');
+  currentBlock.className = 'msg-block assistant-block';
+  currentBlock.innerHTML =
+    '<div class="msg-role claude">Claude <span class="stream-dot"></span> <span class="status-word"></span></div>' +
+    '<div class="block-toolbar">' +
+      '<button class="tb-btn tb-copy" title="Copy">⧉</button>' +
+      '<button class="tb-btn tb-rewind" title="Rewind (coming soon)" disabled>⟲</button>' +
+    '</div>';
+  startStatusWord(currentBlock.querySelector('.status-word'));
+  showThread();
+  $thread.insertBefore(currentBlock, $scrollPill);
+  scrollEnd();
+  return currentBlock;
+}
+
+function appendToTurn(el) {
+  ensureTurnBlock().appendChild(el);
+  scrollEnd();
+}
+
+/* ── User block ───────────────────────── */
 function addUserBlock(text) {
   showThread();
   const b = document.createElement('div');
-  b.className = 'msg-block';
-  b.innerHTML = '<div class="msg-role user">You</div><div class="msg-content"></div>';
-  b.querySelector('.msg-content').textContent = text;
-  $thread.appendChild(b);
+  b.className = 'msg-block user-block';
+  const mentionHtml = esc(text).replace(/@(\S+)/g, function(m, ref) {
+    const name = ref.split('/').pop();
+    return '<span class="msg-mention" data-ref="' + esc(ref) + '">📄 ' + esc(name) + '</span>';
+  });
+  b.innerHTML =
+    '<div class="msg-role user">You</div>' +
+    '<div class="msg-content">' + mentionHtml + '</div>' +
+    '<div class="block-toolbar"><button class="tb-btn tb-copy" title="Copy">⧉</button></div>';
+  $thread.insertBefore(b, $scrollPill);
   scrollEnd();
 }
 
-function startClaudeBlock() {
-  currentBlock = document.createElement('div');
-  currentBlock.className = 'msg-block';
-  currentBlock.innerHTML =
-    '<div class="msg-role claude">Claude <span class="stream-dot"></span></div>' +
-    '<div class="msg-content"></div>';
-  $thread.appendChild(currentBlock);
+/* ── Thinking block ───────────────────── */
+function startThinkingBlock() {
+  activeMode = 'thinking';
+  activeThinkingRaw = '';
+  activeThinkingStart = Date.now();
+  const wrap = document.createElement('div');
+  wrap.className = 'thinking-block open';
+  wrap.innerHTML =
+    '<div class="thinking-summary">✻ Thinking<span class="thinking-elapsed"></span><span class="tool-chev">▶</span></div>' +
+    '<div class="thinking-body"></div>';
+  wrap.querySelector('.thinking-summary').addEventListener('click', function() {
+    wrap.classList.toggle('open');
+  });
+  appendToTurn(wrap);
+  activeThinkingEl = wrap;
+}
+
+function appendThinkingDelta(text) {
+  if (activeMode !== 'thinking') startThinkingBlock();
+  activeThinkingRaw += text;
+  activeThinkingEl.querySelector('.thinking-body').textContent = activeThinkingRaw;
   scrollEnd();
 }
 
-function appendText(text) {
-  if (!currentBlock) startClaudeBlock();
-  currentBlock.querySelector('.msg-content').textContent += text;
+function finishThinkingBlock() {
+  if (!activeThinkingEl) return;
+  const secs = Math.max(1, Math.round((Date.now() - activeThinkingStart) / 1000));
+  activeThinkingEl.querySelector('.thinking-summary').innerHTML =
+    '✻ Thought for ' + secs + 's<span class="tool-chev">▶</span>';
+  activeThinkingEl.classList.remove('open');
+  activeThinkingEl = null;
+  activeThinkingRaw = '';
+}
+
+/* ── Text block ───────────────────────── */
+function startTextBlock() {
+  activeMode = 'text';
+  activeTextRaw = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'msg-md';
+  appendToTurn(wrap);
+  activeTextEl = wrap;
+}
+
+function appendTextDelta(text) {
+  if (activeMode !== 'text') startTextBlock();
+  activeTextRaw += text;
+  activeTextEl.innerHTML = renderMarkdown(activeTextRaw) + '<span class="stream-caret"></span>';
   scrollEnd();
 }
 
-function buildToolBody(name, inputJson, isEdit) {
+let lastTurnTextRaw = '';
+
+function finishTextBlock() {
+  if (!activeTextEl) return;
+  activeTextEl.innerHTML = renderMarkdown(activeTextRaw);
+  lastTurnTextRaw = activeTextRaw;
+  activeTextEl = null;
+  activeTextRaw = '';
+}
+
+function onBlockStop() {
+  if (activeMode === 'thinking') finishThinkingBlock();
+  else if (activeMode === 'text') finishTextBlock();
+  activeMode = null;
+}
+
+/* ── Tool blocks ──────────────────────── */
+const toolUseCounts = {};
+
+function startRunningTool(name, toolId) {
+  toolUseCounts[name] = (toolUseCounts[name] || 0) + 1;
+
+  const block = document.createElement('div');
+  block.className = 'tool-block running';
+  block.dataset.toolName = name;
+
+  const hdr = document.createElement('div');
+  hdr.className = 'tool-hdr';
+  hdr.innerHTML =
+    '<span class="tool-spinner"></span>' +
+    '<span class="tool-nm">' + esc(name) + '</span>';
+  block.appendChild(hdr);
+
+  if (toolId) toolBlocksById[toolId] = block;
+  appendToTurn(block);
+  turnToolCount++;
+}
+
+function buildToolBody(name, inputJson, isEdit, proposedContent) {
   const bdy = document.createElement('div');
   bdy.className = 'tool-bdy';
 
   if (isEdit) {
     try {
       const input = JSON.parse(inputJson);
-      const fp = input.file_path || '';
-      if (fp) {
-        const fh = document.createElement('div');
-        fh.className = 'diff-file';
-        fh.textContent = fp;
-        bdy.appendChild(fh);
-      }
       const code = document.createElement('div');
       code.className = 'diff-code';
       if (input.old_string !== undefined || input.new_string !== undefined) {
@@ -463,6 +1181,19 @@ function buildToolBody(name, inputJson, isEdit) {
         return bdy;
       }
       bdy.appendChild(code);
+
+      if (proposedContent != null) {
+        const toggle = document.createElement('button');
+        toggle.type = 'button';
+        toggle.className = 'tool-edit-toggle';
+        toggle.textContent = '✎ Edit before keeping';
+        const editor = document.createElement('textarea');
+        editor.className = 'diff-editor hidden';
+        editor.value = proposedContent;
+        toggle.addEventListener('click', function() { editor.classList.toggle('hidden'); });
+        bdy.appendChild(toggle);
+        bdy.appendChild(editor);
+      }
       return bdy;
     } catch(_) { bdy.textContent = inputJson; return bdy; }
   }
@@ -472,44 +1203,171 @@ function buildToolBody(name, inputJson, isEdit) {
   return bdy;
 }
 
-function addToolBlock(name, inputJson, toolId, isEdit) {
-  const block = document.createElement('div');
-  block.className = 'tool-block';
+function diffCounts(input) {
+  let adds = 0, dels = 0;
+  if (input.old_string !== undefined || input.new_string !== undefined) {
+    dels = (input.old_string || '').split('\n').length;
+    adds = (input.new_string || '').split('\n').length;
+  } else if (input.content !== undefined) {
+    adds = String(input.content).split('\n').length;
+  }
+  return { adds, dels };
+}
 
+function buildToolHeader(name, input, isEdit, toolId) {
   const hdr = document.createElement('div');
-  hdr.className = 'tool-hdr open';
-  hdr.innerHTML = '<span class="tool-chev">▶</span><span class="tool-nm">' + esc(name) + '</span>';
+
+  if (name === 'Read' || name === 'Grep' || name === 'Glob') {
+    hdr.className = 'tool-hdr open';
+    const label = name === 'Read' ? (input.file_path || '') : (input.pattern || '');
+    hdr.innerHTML =
+      '<span class="tool-chev">▶</span>' +
+      '<span class="tool-nm">' + esc(name) + ' ' + esc(label) + '</span>' +
+      '<span class="tool-summary"></span>';
+  } else if (name === 'Bash') {
+    hdr.className = 'tool-hdr tool-row-bash open';
+    hdr.innerHTML =
+      '<span class="tool-chev">▶</span>' +
+      '<span class="tool-bash-cmd">$ ' + esc(input.command || '') + '</span>';
+  } else if (isEdit) {
+    hdr.className = 'tool-hdr open';
+    const { adds, dels } = diffCounts(input);
+    hdr.innerHTML =
+      '<span class="tool-chev">▶</span>' +
+      '<span class="tool-nm">' + esc(name) + '</span>' +
+      '<span class="tool-summary"><span class="diff-stat-add">+' + adds + '</span> <span class="diff-stat-del">-' + dels + '</span></span>';
+    if (toolId) {
+      const link = document.createElement('button');
+      link.className = 'diff-view-link';
+      link.type = 'button';
+      link.textContent = 'Open in diff viewer';
+      link.addEventListener('click', function(e) {
+        e.stopPropagation();
+        if (window.__viewDiffBridge__) window.__viewDiffBridge__(toolId);
+      });
+      hdr.appendChild(link);
+    }
+  } else {
+    hdr.className = 'tool-hdr open';
+    hdr.innerHTML = '<span class="tool-chev">▶</span><span class="tool-nm">' + esc(name) + '</span>';
+  }
+
   hdr.addEventListener('click', function() { hdr.classList.toggle('open'); });
+  return hdr;
+}
 
-  const bdy = buildToolBody(name, inputJson, isEdit);
+function resolveToolBlock(name, inputJson, toolId, isEdit, proposedContent, filePath) {
+  let input = {};
+  try { input = JSON.parse(inputJson); } catch(_) {}
 
+  let block = toolId ? toolBlocksById[toolId] : null;
+  if (!block) {
+    block = document.createElement('div');
+    block.className = 'tool-block';
+    if (toolId) toolBlocksById[toolId] = block;
+    appendToTurn(block);
+  }
+  block.classList.remove('running');
+  block.dataset.toolName = name;
+  block.innerHTML = '';
+
+  const hdr = buildToolHeader(name, input, isEdit, toolId);
+  const bdy = buildToolBody(name, inputJson, isEdit, proposedContent);
   block.appendChild(hdr);
   block.appendChild(bdy);
 
-  if (isEdit && toolId) {
+  if (isEdit && toolId && proposedContent != null) {
+    const note = document.createElement('div');
+    note.className = 'tool-review-note';
+    note.textContent = 'Claude already wrote this to ' + (filePath ? filePath.split('/').pop() : 'the file') + ' — review below.';
+    block.appendChild(note);
+
     const actions = document.createElement('div');
     actions.className = 'tool-actions';
-    const aBtn = document.createElement('button');
-    aBtn.textContent = '✓ Accept'; aBtn.className = 'tool-btn t-accept';
+    const kBtn = document.createElement('button');
+    kBtn.textContent = '✓ Keep'; kBtn.className = 'tool-btn t-accept';
     const rBtn = document.createElement('button');
-    rBtn.textContent = '✗ Reject'; rBtn.className = 'tool-btn t-reject';
-    aBtn.onclick = function() { window.__acceptBridge__(toolId); aBtn.textContent = '✓ Accepted'; aBtn.disabled = rBtn.disabled = true; };
-    rBtn.onclick = function() { window.__rejectBridge__(toolId); rBtn.textContent = '✗ Rejected'; aBtn.disabled = rBtn.disabled = true; };
-    actions.appendChild(aBtn); actions.appendChild(rBtn);
+    rBtn.textContent = '↩ Revert'; rBtn.className = 'tool-btn t-reject';
+    kBtn.onclick = function() {
+      const editor = bdy.querySelector('.diff-editor');
+      const content = editor ? editor.value : proposedContent;
+      if (window.__keepBridge__) window.__keepBridge__(JSON.stringify({ toolId: toolId, content: content }));
+      kBtn.textContent = '✓ Kept'; kBtn.disabled = rBtn.disabled = true;
+    };
+    rBtn.onclick = function() {
+      if (window.__revertBridge__) window.__revertBridge__(toolId);
+      rBtn.textContent = '↩ Reverted'; kBtn.disabled = rBtn.disabled = true;
+    };
+    actions.appendChild(kBtn); actions.appendChild(rBtn);
     block.appendChild(actions);
   }
-
-  if (currentBlock) { currentBlock.appendChild(block); }
-  else { const w = document.createElement('div'); w.className = 'msg-block'; w.appendChild(block); $thread.appendChild(w); }
   scrollEnd();
 }
 
-function finishTurn(costUsd) {
+function appendToolResult(toolId, content, isError) {
+  const block = toolBlocksById[toolId];
+  if (!block) return;
+  const toolName = block.dataset.toolName || '';
+
+  if (isError) block.classList.add('tool-error');
+
+  const summaryEl = block.querySelector('.tool-summary');
+  if (summaryEl && (toolName === 'Read' || toolName === 'Grep' || toolName === 'Glob')) {
+    const lineCount = content ? content.split('\n').length : 0;
+    summaryEl.textContent = isError ? 'error' : (lineCount + (lineCount === 1 ? ' line' : ' lines'));
+  }
+
+  if (toolName === 'Bash') {
+    const row = block.querySelector('.tool-row-bash');
+    if (row && !row.querySelector('.tool-exit-badge')) {
+      const badge = document.createElement('span');
+      badge.className = 'tool-exit-badge ' + (isError ? 'err' : 'ok');
+      badge.textContent = isError ? '✗' : '✓';
+      row.appendChild(badge);
+    }
+  }
+
+  const result = document.createElement('div');
+  result.className = 'tool-result' + (isError ? ' error' : '');
+  result.textContent = content;
+  block.appendChild(result);
+  scrollEnd();
+}
+
+/* ── Turn end / error ─────────────────── */
+function finishTurn(costUsd, durationMs) {
+  if (activeMode === 'thinking') finishThinkingBlock();
+  else if (activeMode === 'text') finishTextBlock();
+  activeMode = null;
+  stopStatusWord();
+
   if (currentBlock) {
     const dot = currentBlock.querySelector('.stream-dot');
     if (dot) dot.remove();
+    const word = currentBlock.querySelector('.status-word');
+    if (word) word.remove();
+
+    const elapsedS = durationMs != null ? (durationMs / 1000) : ((Date.now() - turnStartTime) / 1000);
+    const parts = [];
+    if (turnToolCount > 0) parts.push(turnToolCount + (turnToolCount === 1 ? ' tool use' : ' tool uses'));
+    parts.push(elapsedS.toFixed(1) + 's');
+    if (costUsd != null && !isNaN(costUsd)) parts.push('$' + costUsd.toFixed(3));
+
+    const summary = document.createElement('div');
+    summary.className = 'turn-summary';
+    summary.textContent = parts.join(' · ');
+    currentBlock.appendChild(summary);
+
     currentBlock = null;
   }
+
+  if (currentMode === 'plan' && lastTurnTextRaw.trim()) {
+    if (window.__planReadyBridge__) window.__planReadyBridge__(lastTurnTextRaw);
+    showPlanRow();
+  }
+  lastTurnTextRaw = '';
+
+  turnToolCount = 0;
   renderBudget(costUsd);
   setStreaming(false);
   $prompt.focus();
@@ -517,12 +1375,14 @@ function finishTurn(costUsd) {
 }
 
 function showError(msg) {
+  activeMode = null;
+  stopStatusWord();
   if (currentBlock) { const d = currentBlock.querySelector('.stream-dot'); if (d) d.remove(); currentBlock = null; }
   showThread();
   const b = document.createElement('div');
   b.className = 'err-block';
   b.textContent = '⚠ ' + msg;
-  $thread.appendChild(b);
+  $thread.insertBefore(b, $scrollPill);
   setStreaming(false);
   scrollEnd();
 }
@@ -535,58 +1395,503 @@ function setStreaming(on) {
   $stopBtn.classList.toggle('visible', on);
 }
 
+/* ── Thinking toggle-all (Ctrl+O) ─────── */
+function toggleAllThinking() {
+  const blocks = document.querySelectorAll('.thinking-block');
+  if (!blocks.length) return;
+  const anyOpen = Array.from(blocks).some(b => b.classList.contains('open'));
+  blocks.forEach(b => b.classList.toggle('open', !anyOpen));
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'o' || e.key === 'O')) {
+    e.preventDefault();
+    toggleAllThinking();
+  }
+});
+
+/* ── Delegated clicks: copy, mentions ─── */
+$thread.addEventListener('click', function(e) {
+  const copyBtn = e.target.closest('.md-copy');
+  if (copyBtn) {
+    const code = copyBtn.closest('.md-pre').querySelector('code');
+    copyToClipboard(code.textContent);
+    const prev = copyBtn.textContent;
+    copyBtn.textContent = 'Copied';
+    setTimeout(function() { copyBtn.textContent = prev; }, 1200);
+    return;
+  }
+  const tbCopy = e.target.closest('.tb-copy');
+  if (tbCopy) {
+    const block = tbCopy.closest('.msg-block');
+    const text = block ? (block.querySelector('.msg-md, .msg-content') || {}).innerText || '' : '';
+    copyToClipboard(text);
+    return;
+  }
+  const mention = e.target.closest('.msg-mention');
+  if (mention && window.__openMentionBridge__) {
+    window.__openMentionBridge__(mention.dataset.ref);
+  }
+});
+
 /* ── Kotlin bridges ──────────────────── */
 window.injectContext = function(ref) {
   const filename = ref.split('/').pop().split('#')[0];
   $ctxPill.textContent = '📄 ' + filename;
+  $ctxPill.dataset.ref = ref;
   $ctxPill.classList.add('visible');
   $prompt.focus();
 };
 
-window.initSettings = function(mode, diag) {
-  currentMode = mode;
-  $modeBtn.textContent = MODE_LABELS[mode] || mode;
-  diagEnabled = !!diag;
+window.initSettings = function(settings) {
+  settings = settings || {};
+  currentMode = settings.mode || 'default';
+  $modeBtn.textContent = MODE_LABELS[currentMode] || currentMode;
+  $modeBtn.classList.toggle('danger', currentMode === 'bypassPermissions');
+  updateSendBtnMode(currentMode);
+  diagEnabled = !!settings.diag;
   $diagBtn.classList.toggle('active', diagEnabled);
+  currentModel = settings.model || 'default';
+  $modelBtn.textContent = MODEL_LABELS[currentModel] || currentModel;
+  ctrlEnterToSend = !!settings.ctrlEnterToSend;
+  allowBypass = !!settings.allowBypass;
+  if (!settings.hideOnboarding) showOnboardingOverlay();
 };
 
 window.receiveEvent = function(type, payload) {
   switch (type) {
-    case 'text': appendText(payload); break;
+    case 'init': {
+      try {
+        const d = JSON.parse(payload);
+        latestModel = d.model || '';
+        latestMcpServers = Array.isArray(d.mcpServers) ? d.mcpServers : [];
+      } catch(_) {}
+      break;
+    }
+    case 'text': appendTextDelta(payload); break;
+    case 'thinking': appendThinkingDelta(payload); break;
+    case 'blockStop': onBlockStop(); break;
+    case 'toolStart': {
+      try { const d = JSON.parse(payload); startRunningTool(d.name, d.toolId); }
+      catch(_) {}
+      break;
+    }
     case 'tool': {
-      try { const d = JSON.parse(payload); addToolBlock(d.name, d.input, d.toolId, d.isEdit); }
-      catch(_) { addToolBlock('tool', payload, null, false); }
+      try { const d = JSON.parse(payload); resolveToolBlock(d.name, d.input, d.toolId, d.isEdit, d.proposedContent, d.filePath); }
+      catch(_) { resolveToolBlock('tool', payload, null, false); }
+      break;
+    }
+    case 'toolResult': {
+      try { const d = JSON.parse(payload); appendToolResult(d.toolId, d.content, d.isError); }
+      catch(_) {}
       break;
     }
     case 'end': {
-      try { finishTurn(JSON.parse(payload).cost); } catch(_) { finishTurn(null); }
+      try {
+        const d = JSON.parse(payload);
+        finishTurn(d.cost, d.durationMs);
+        renderContextMeter(d.contextTokensUsed, d.contextWindow);
+      } catch(_) { finishTurn(null, null); }
       break;
     }
     case 'error': showError(payload); break;
   }
 };
 
-/* ── Mode cycle ──────────────────────── */
-const MODE_CYCLE  = ['default', 'acceptEdits', 'plan'];
-const MODE_LABELS = { 'default': 'Ask before edits', 'acceptEdits': 'Auto-accept edits', 'plan': 'Plan mode' };
+/* ── Mode / model dropdowns ──────────── */
+const MODE_LABELS = { 'default': 'Ask before edits', 'acceptEdits': 'Auto-accept edits', 'plan': 'Plan mode', 'bypassPermissions': 'Bypass permissions' };
+const MODEL_LABELS = { 'default': 'Default', 'sonnet': 'Sonnet', 'opus': 'Opus', 'haiku': 'Haiku', 'fable': 'Fable' };
+
+function updateSendBtnMode(mode) {
+  $sendBtn.classList.remove('mode-accept', 'mode-plan', 'mode-danger');
+  if (mode === 'acceptEdits') $sendBtn.classList.add('mode-accept');
+  else if (mode === 'plan') $sendBtn.classList.add('mode-plan');
+  else if (mode === 'bypassPermissions') $sendBtn.classList.add('mode-danger');
+}
+
+function modeOptions() {
+  const opts = [
+    { id: 'default',   label: 'Manual',           desc: 'Ask before every tool use' },
+    { id: 'plan',       label: 'Plan',             desc: 'Research and plan without making changes' },
+    { id: 'acceptEdits', label: 'Edit automatically', desc: 'Auto-accept file edits, still ask for other tools' },
+  ];
+  if (allowBypass) {
+    opts.push({ id: 'bypassPermissions', label: 'Bypass permissions', desc: 'Skip ALL confirmations — dangerous', danger: true });
+  }
+  return opts;
+}
+
+function openDropdown(menu, anchorBtn, options, onPick) {
+  menu.innerHTML = '';
+  options.forEach(function(o) {
+    const item = document.createElement('div');
+    item.className = 'dd-item' + (o.danger ? ' danger' : '');
+    item.innerHTML = '<span>' + esc(o.label) + '</span>' + (o.desc ? '<span class="dd-item-desc">' + esc(o.desc) + '</span>' : '');
+    item.addEventListener('mousedown', function(e) { e.preventDefault(); closeDropdowns(); onPick(o.id); });
+    menu.appendChild(item);
+  });
+  const rect = anchorBtn.getBoundingClientRect();
+  menu.style.left = 'auto';
+  menu.style.right = (window.innerWidth - rect.right) + 'px';
+  menu.style.bottom = (window.innerHeight - rect.top + 6) + 'px';
+  menu.classList.remove('hidden');
+}
+
+function closeDropdowns() {
+  $modeMenu.classList.add('hidden');
+  $modelMenu.classList.add('hidden');
+  $overflowMenu.classList.add('hidden');
+}
+
+$modeBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (!$modeMenu.classList.contains('hidden')) { closeDropdowns(); return; }
+  closeDropdowns();
+  openDropdown($modeMenu, $modeBtn, modeOptions(), function(id) {
+    currentMode = id;
+    $modeBtn.textContent = MODE_LABELS[id] || id;
+    $modeBtn.classList.toggle('danger', id === 'bypassPermissions');
+    updateSendBtnMode(id);
+    if (window.__modeBridge__) window.__modeBridge__(id);
+  });
+});
+
+$modelBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (!$modelMenu.classList.contains('hidden')) { closeDropdowns(); return; }
+  closeDropdowns();
+  const opts = Object.keys(MODEL_LABELS).map(function(id) { return { id: id, label: MODEL_LABELS[id] }; });
+  openDropdown($modelMenu, $modelBtn, opts, function(id) {
+    currentModel = id;
+    $modelBtn.textContent = MODEL_LABELS[id] || id;
+    if (window.__modelBridge__) window.__modelBridge__(id);
+  });
+});
+
+document.addEventListener('mousedown', function(e) {
+  if (!e.target.closest('.dropdown-menu') && !e.target.closest('#mode-btn') && !e.target.closest('#model-btn') && !e.target.closest('#overflow-btn')) {
+    closeDropdowns();
+  }
+});
+
+/* ── Header bar ───────────────────────── */
+function resetThread() {
+  $thread.innerHTML = '';
+  $thread.appendChild($scrollPill);
+  $thread.classList.remove('visible');
+  $empty.classList.remove('hidden');
+  $budgetBar.classList.remove('visible');
+  $ctxMeter.classList.remove('visible');
+  fiveHourCost = 0;
+  weeklyCost = 0;
+  currentBlock = null;
+  activeMode = null;
+  activeThinkingEl = null;
+  activeTextEl = null;
+  Object.keys(toolBlocksById).forEach(function(k) { delete toolBlocksById[k]; });
+  hasSentFirstMessage = false;
+  $prompt.placeholder = 'Ask Claude…';
+  attachments = [];
+  renderAttachments();
+  pinnedToBottom = true;
+}
+
+window.loadHistoricalTranscript = function(json) {
+  let messages = [];
+  try { messages = JSON.parse(json); } catch(_) {}
+  resetThread();
+  if (!Array.isArray(messages) || !messages.length) return;
+
+  messages.forEach(function(m) {
+    if (m.role === 'user') {
+      addUserBlock(m.text);
+    } else if (m.role === 'assistant') {
+      showThread();
+      const b = document.createElement('div');
+      b.className = 'msg-block assistant-block';
+      b.innerHTML = '<div class="msg-role claude">Claude</div><div class="msg-md"></div>';
+      b.querySelector('.msg-md').innerHTML = renderMarkdown(m.text);
+      $thread.insertBefore(b, $scrollPill);
+    }
+  });
+
+  const divider = document.createElement('div');
+  divider.className = 'thread-divider';
+  divider.textContent = 'resumed session — continue below';
+  $thread.insertBefore(divider, $scrollPill);
+
+  hasSentFirstMessage = true;
+  $prompt.placeholder = 'Continue…';
+  scrollEnd();
+};
+
+$newSessionBtn.addEventListener('click', function() {
+  if (streaming) return;
+  if (window.__newSessionBridge__) window.__newSessionBridge__();
+  resetThread();
+});
+
+$overflowBtn.addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (!$overflowMenu.classList.contains('hidden')) { closeDropdowns(); return; }
+  closeDropdowns();
+  openDropdown($overflowMenu, $overflowBtn, [
+    { id: 'editor-tab', label: 'Open in Editor Tab' },
+    { id: 'new-window', label: 'Open in New Window' },
+    { id: 'settings',   label: 'Settings' },
+  ], function(id) {
+    if (id === 'editor-tab' && window.__openEditorTabBridge__) window.__openEditorTabBridge__();
+    if (id === 'new-window' && window.__openNewWindowBridge__) window.__openNewWindowBridge__();
+    if (id === 'settings'   && window.__openSettingsBridge__) window.__openSettingsBridge__();
+  });
+});
+
+/* ── Overlay system (usage / mcp / plugins / history / onboarding) ── */
+function openOverlay(title) {
+  $overlayTitle.textContent = title;
+  $overlayBody.innerHTML = '';
+  $overlayBackdrop.classList.add('visible');
+  return $overlayBody;
+}
+function closeOverlay() { $overlayBackdrop.classList.remove('visible'); }
+$overlayClose.addEventListener('click', closeOverlay);
+$overlayBackdrop.addEventListener('mousedown', function(e) { if (e.target === $overlayBackdrop) closeOverlay(); });
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape' && $overlayBackdrop.classList.contains('visible')) closeOverlay();
+});
+
+/* ── /usage — real session-local totals only, no fake account data ── */
+function showUsageOverlay() {
+  const body = openOverlay('Usage');
+  const p5 = Math.min(100, Math.round((fiveHourCost / FIVE_H_BUDGET) * 100));
+  const pw = Math.min(100, Math.round((weeklyCost / WEEKLY_BUDGET) * 100));
+  const toolRows = Object.keys(toolUseCounts).sort().map(function(name) {
+    return '<div class="usage-tool-row"><span>' + esc(name) + '</span><span>' + toolUseCounts[name] + '</span></div>';
+  }).join('') || '<div class="usage-tool-row"><span>No tool calls yet this session</span></div>';
+
+  body.innerHTML =
+    '<div class="ov-note">Local totals tracked by Confer for this IDE session only. Account/plan details and cross-session history aren\'t available without direct API access.</div>' +
+    '<div class="ov-section-hdr">Cost</div>' +
+    '<div class="usage-bar-row"><span style="width:52px">5h</span><div class="budget-track"><div class="budget-fill" style="width:' + p5 + '%;background:' + budgetColor(p5) + '"></div></div><span>' + p5 + '%</span></div>' +
+    '<div class="usage-bar-row"><span style="width:52px">Week</span><div class="budget-track"><div class="budget-fill" style="width:' + pw + '%;background:' + budgetColor(pw) + '"></div></div><span>' + pw + '%</span></div>' +
+    '<div class="ov-section-hdr">Tool use this session</div>' +
+    toolRows;
+}
+
+/* ── /mcp — real server list from the CLI's own init event ── */
+let latestMcpServers = [];
+let latestModel = '';
+
+function mcpDotClass(status) {
+  if (status === 'connected') return 'ok';
+  if (status === 'needs-auth' || status === 'connecting') return 'warn';
+  return 'err';
+}
+
+function showMcpOverlay() {
+  const body = openOverlay('MCP Servers');
+  if (!latestMcpServers.length) {
+    body.innerHTML = '<div class="ov-note">No MCP servers reported yet — they appear here once a conversation has started.</div>';
+    return;
+  }
+  body.innerHTML =
+    '<div class="ov-note">Reported by the claude CLI at session start. Reconnect/Authenticate/enable controls aren\'t wired up yet — Confer only mirrors CLI state, it doesn\'t manage MCP servers.</div>' +
+    latestMcpServers.map(function(s) {
+      return '<div class="mcp-row">' +
+        '<span class="mcp-dot ' + mcpDotClass(s.status) + '"></span>' +
+        '<span class="mcp-name">' + esc(s.name) + '</span>' +
+        '<span class="mcp-status">' + esc(s.status) + '</span>' +
+        '<button class="mcp-action" disabled>Reconnect</button>' +
+        '</div>';
+    }).join('');
+}
+
+/* ── /plugins — no safe backend to read/write plugin config, honest mock ── */
+function showPluginsOverlay() {
+  const body = openOverlay('Plugins');
+  body.innerHTML =
+    '<div class="ov-note">Plugin management isn\'t available in Confer yet. Manage plugins with the claude CLI directly (<code>claude plugin</code>) or by editing <code>~/.claude/settings.json</code>.</div>';
+}
+
+/* ── Session history — real, reads ~/.claude/projects/*.jsonl via Kotlin ── */
+function histGroupLabel(ts) {
+  const now = new Date();
+  const d = new Date(ts);
+  const startOfDay = function(dt) { return new Date(dt.getFullYear(), dt.getMonth(), dt.getDate()).getTime(); };
+  const diffDays = Math.round((startOfDay(now) - startOfDay(d)) / 86400000);
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+  if (diffDays <= 7) return 'Last 7 days';
+  return 'Older';
+}
+
+function showHistoryOverlay() {
+  openOverlay('Session History').innerHTML = '<div class="ov-note">Loading…</div>';
+  if (!window.__sessionHistoryBridge__) {
+    $overlayBody.innerHTML = '<div class="hist-empty">Bridge not ready — try reopening the panel.</div>';
+    return;
+  }
+  setTimeout(function() {
+    if ($overlayTitle.textContent === 'Session History' && $overlayBody.querySelector('.ov-note')) {
+      $overlayBody.innerHTML = '<div class="hist-empty">No response from the plugin after 5s — this points to a real bug, not empty data.</div>';
+    }
+  }, 5000);
+  window.__sessionHistoryBridge__();
+}
+
+window.receiveSessionHistory = function(json) {
+  if ($overlayTitle.textContent !== 'Session History') return;
+  const body = $overlayBody;
+  let sessions = [];
+  try { sessions = JSON.parse(json); } catch(_) {}
+  sessions = Array.isArray(sessions) ? sessions : [];
+  if (!sessions.length) { body.innerHTML = '<div class="hist-empty">No past sessions found for this project.</div>'; return; }
+
+  const groups = {};
+  const order = ['Today', 'Yesterday', 'Last 7 days', 'Older'];
+  sessions.forEach(function(s) {
+    const g = histGroupLabel(s.timestamp);
+    (groups[g] = groups[g] || []).push(s);
+  });
+
+  body.innerHTML = '<div class="ov-note">Resuming continues the session server-side. Past messages aren\'t replayed into this view yet.</div>';
+  order.forEach(function(g) {
+    if (!groups[g]) return;
+    const hdr = document.createElement('div');
+    hdr.className = 'hist-group-hdr';
+    hdr.textContent = g;
+    body.appendChild(hdr);
+    groups[g].forEach(function(s) {
+      const row = document.createElement('div');
+      row.className = 'hist-row';
+      row.innerHTML =
+        '<div class="hist-preview">' + esc(s.preview) + '</div>' +
+        '<div class="hist-time">' + new Date(s.timestamp).toLocaleString() + '</div>';
+      row.addEventListener('click', function() {
+        closeOverlay();
+        if (window.__resumeSessionBridge__) window.__resumeSessionBridge__(s.id);
+      });
+      body.appendChild(row);
+    });
+  });
+};
+
+/* ── Onboarding checklist ─────────────── */
+const ONBOARDING_ITEMS = [
+  { text: 'Chat with Claude using the prompt box below.', show: function() { closeOverlay(); $prompt.focus(); } },
+  { text: 'Reference files with @-mentions — type @ to search.', show: function() { closeOverlay(); $prompt.value = '@'; $prompt.dispatchEvent(new Event('input')); $prompt.focus(); } },
+  { text: 'Highlight code in the editor and press Shift+Alt+C to bring it into the chat.', show: null },
+  { text: 'Review edits Claude makes — Keep or Revert them from the tool card.', show: null },
+];
+
+function showOnboardingOverlay() {
+  const body = openOverlay('Learn Confer');
+  body.innerHTML = '';
+  ONBOARDING_ITEMS.forEach(function(item) {
+    const row = document.createElement('div');
+    row.className = 'ob-item';
+    row.innerHTML = '<div class="ob-item-text">' + esc(item.text) + '</div>';
+    if (item.show) {
+      const btn = document.createElement('button');
+      btn.className = 'ob-show-btn';
+      btn.type = 'button';
+      btn.textContent = 'Show me';
+      btn.addEventListener('click', item.show);
+      row.appendChild(btn);
+    }
+    body.appendChild(row);
+  });
+  const dismissBtn = document.createElement('button');
+  dismissBtn.className = 'ob-dismiss-btn';
+  dismissBtn.type = 'button';
+  dismissBtn.textContent = "Got it, don't show again";
+  dismissBtn.addEventListener('click', function() {
+    if (window.__dismissOnboardingBridge__) window.__dismissOnboardingBridge__();
+    closeOverlay();
+  });
+  body.appendChild(dismissBtn);
+}
+
+$historyBtn.addEventListener('click', showHistoryOverlay);
+$onboardingBtn.addEventListener('click', showOnboardingOverlay);
+
+/* ── Plan mode: inline Approve / Reject ─ */
+function showPlanRow() {
+  const row = document.createElement('div');
+  row.className = 'plan-row';
+  row.innerHTML =
+    '<span class="plan-row-label">Plan ready — review the full document, then respond.</span>' +
+    '<button class="plan-btn plan-approve" type="button">✓ Approve</button>' +
+    '<button class="plan-btn plan-reject" type="button">✗ Reject</button>';
+  row.querySelector('.plan-approve').addEventListener('click', function() {
+    row.remove();
+    $prompt.value = 'The plan looks good — please proceed.';
+    doSend();
+  });
+  row.querySelector('.plan-reject').addEventListener('click', function() {
+    row.remove();
+    $prompt.value = "I'd like to change this plan before proceeding — here's what I want different: ";
+    $prompt.focus();
+    autoResize();
+  });
+  $thread.insertBefore(row, $scrollPill);
+  scrollEnd();
+}
+
+/* ── Context meter ────────────────────── */
+function renderContextMeter(tokensUsed, contextWindow) {
+  if (tokensUsed == null || !contextWindow) { $ctxMeter.classList.remove('visible'); return; }
+  const pct = Math.min(100, Math.round((tokensUsed / contextWindow) * 100));
+  const filledSegs = Math.round((pct / 100) * 5);
+  const segs = $ctxTrack.querySelectorAll('.seg');
+  segs.forEach(function(s, i) { s.classList.toggle('filled', i < filledSegs); });
+  $ctxTrack.classList.toggle('warn', pct >= 75 && pct < 90);
+  $ctxTrack.classList.toggle('err', pct >= 90);
+  $ctxPct.textContent = pct + '%';
+  $ctxMeter.title = tokensUsed.toLocaleString() + ' / ' + contextWindow.toLocaleString() + ' tokens';
+  $ctxMeter.classList.add('visible');
+}
+
+$ctxMeter.addEventListener('click', function() {
+  if (streaming) return;
+  $prompt.value = '/compact';
+  doSend();
+});
 
 /* ── Send / stop ─────────────────────── */
+function composeOutgoingText(typed) {
+  const prefixes = [];
+  if ($ctxPill.classList.contains('visible') && $ctxPill.dataset.ref) prefixes.push($ctxPill.dataset.ref);
+  if (currentSelection && !selectionHidden) prefixes.push(currentSelection.ref);
+  attachments.forEach(function(a) { prefixes.push('@' + a.path); });
+  return prefixes.length ? prefixes.join(' ') + '\n' + typed : typed;
+}
+
 function doSend() {
-  const text = $prompt.value.trim();
-  if (!text || streaming) return;
-  addUserBlock(text);
-  startClaudeBlock();
+  const typed = $prompt.value.trim();
+  if (!typed || streaming) return;
+  const outgoing = composeOutgoingText(typed);
+
+  addUserBlock(outgoing);
+  turnStartTime = Date.now();
+  turnToolCount = 0;
+  pinnedToBottom = true;
+  hasSentFirstMessage = true;
   $prompt.value = '';
+  $prompt.placeholder = 'Continue…';
   autoResize();
   setStreaming(true);
-  window.__sendBridge__(text);
+  window.__sendBridge__(outgoing);
+
+  $ctxPill.textContent = ''; delete $ctxPill.dataset.ref; $ctxPill.classList.remove('visible');
+  attachments = []; renderAttachments();
 }
 
 $sendBtn.addEventListener('click', doSend);
 
 $stopBtn.addEventListener('click', function() {
   if (window.__stopBridge__) window.__stopBridge__();
-  finishTurn(null);
+  finishTurn(null, null);
 });
 
 /* ── Prompt keyboard ─────────────────── */
@@ -596,18 +1901,22 @@ $prompt.addEventListener('keydown', function(e) {
     if (e.key === 'ArrowUp')    { e.preventDefault(); movePopupSel(-1); return; }
     if (e.key === 'Escape')     { hidePopup(); return; }
     if (e.key === 'Tab' || (e.key === 'Enter' && !e.shiftKey)) {
-      const active = $popup.querySelector('.sk-item.active');
-      if (active) { e.preventDefault(); active.dispatchEvent(new MouseEvent('mousedown')); return; }
+      if (acceptActivePopupItem()) { e.preventDefault(); return; }
     }
   }
-  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); doSend(); }
-  if (e.key === 'Escape' && streaming)  { if (window.__stopBridge__) window.__stopBridge__(); finishTurn(null); }
+  const sendCombo = ctrlEnterToSend
+    ? (e.key === 'Enter' && (e.ctrlKey || e.metaKey))
+    : (e.key === 'Enter' && !e.shiftKey);
+  if (sendCombo) { e.preventDefault(); doSend(); }
+  if (e.key === 'Escape' && streaming)  { if (window.__stopBridge__) window.__stopBridge__(); finishTurn(null, null); }
 });
 
 $prompt.addEventListener('input', function() {
-  const m = slashContext();
-  if (m) { showPopup(m[2].slice(1)); }
-  else   { hidePopup(); }
+  const at = atContext();
+  const slash = slashContext();
+  if (at)          { showAtPopup(at[2]); }
+  else if (slash)  { showSlashPopup(slash[2].slice(1)); }
+  else             { hidePopup(); }
   autoResize();
 });
 
@@ -617,12 +1926,13 @@ $prompt.addEventListener('blur', function() {
 
 function autoResize() {
   $prompt.style.height = 'auto';
-  $prompt.style.height = Math.min($prompt.scrollHeight, 200) + 'px';
+  $prompt.style.height = Math.min($prompt.scrollHeight, 178) + 'px';
 }
 
 /* ── Action bar controls ─────────────── */
 $ctxPill.addEventListener('click', function() {
   $ctxPill.textContent = '';
+  delete $ctxPill.dataset.ref;
   $ctxPill.classList.remove('visible');
 });
 
@@ -630,13 +1940,6 @@ $diagBtn.addEventListener('click', function() {
   diagEnabled = !diagEnabled;
   $diagBtn.classList.toggle('active', diagEnabled);
   if (window.__diagBridge__) window.__diagBridge__(diagEnabled ? '1' : '0');
-});
-
-$modeBtn.addEventListener('click', function() {
-  const idx   = MODE_CYCLE.indexOf(currentMode);
-  currentMode = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
-  $modeBtn.textContent = MODE_LABELS[currentMode];
-  if (window.__modeBridge__) window.__modeBridge__(currentMode);
 });
 
 $addBtn.addEventListener('click', function() {

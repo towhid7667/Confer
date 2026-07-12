@@ -23,9 +23,10 @@ class ClaudeService(private val project: Project) : Disposable {
 
     fun removeListener(listener: ClaudeEventListener) = listeners.remove(listener)
 
+    private var pendingResumeId: String? = null
+
     fun sendPrompt(text: String) {
         ensureRunning()
-        // ⚠️ Verify: exact input schema for --input-format stream-json against current Claude Code docs.
         val contentJson = gson.toJson(text)
         val message = """{"type":"user","message":{"role":"user","content":$contentJson}}"""
         process?.writeMessage(message)
@@ -37,12 +38,27 @@ class ClaudeService(private val project: Project) : Disposable {
         currentSessionId = null
     }
 
+    /** Stops any running process and resumes the given session on the next prompt. */
+    fun resume(sessionId: String) {
+        stop()
+        pendingResumeId = sessionId
+    }
+
     private fun ensureRunning() {
         if (process != null) return
         val settings = ClaudeSettings.getInstance()
         val workDir = project.basePath ?: System.getProperty("user.home")
+        val resumeId = pendingResumeId
+        pendingResumeId = null
         try {
-            val p = ClaudeProcess(settings.claudeBinaryPath, workDir, settings.permissionMode)
+            val p = ClaudeProcess(
+                settings.claudeBinaryPath,
+                workDir,
+                settings.permissionMode,
+                settings.model,
+                resumeId,
+                settings.parsedEnvironmentVariables(),
+            )
             process = p
             p.start { line ->
                 val event = ClaudeEventParser.parse(line)
