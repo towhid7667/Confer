@@ -1,7 +1,7 @@
 package com.github.towhid7667.confer.toolWindow
 
 import com.github.towhid7667.confer.claude.ClaudeEvent
-import com.github.towhid7667.confer.claude.ClaudeService
+import com.github.towhid7667.confer.claude.ClaudeSessionManager
 import com.intellij.notification.NotificationAction
 import com.intellij.notification.NotificationGroupManager
 import com.intellij.notification.NotificationType
@@ -45,7 +45,7 @@ class ConferToolWindowFactory : ToolWindowFactory {
         val baseIcon = IconLoader.getIcon("/icons/confer.svg", ConferToolWindowFactory::class.java)
         val dotIcon = LayeredIcon(baseIcon, DotIcon(Color(0xE5, 0xA4, 0x4C)))
 
-        project.service<ClaudeService>().addListener { event ->
+        project.service<ClaudeSessionManager>().getOrCreateSession(ClaudeSessionManager.DEFAULT_TAB_ID).addListener { event ->
             if (toolWindow.isVisible) return@addListener
             when (event) {
                 is ClaudeEvent.TurnEnd -> {

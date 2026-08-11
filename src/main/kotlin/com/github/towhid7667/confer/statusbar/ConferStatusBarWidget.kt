@@ -1,7 +1,7 @@
 package com.github.towhid7667.confer.statusbar
 
 import com.github.towhid7667.confer.claude.ClaudeEvent
-import com.github.towhid7667.confer.claude.ClaudeService
+import com.github.towhid7667.confer.claude.ClaudeSessionManager
 import com.intellij.openapi.components.service
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.IconLoader
@@ -41,13 +41,16 @@ class ConferStatusBarWidget(private val project: Project) : StatusBarWidget, Sta
 
     override fun install(statusBar: StatusBar) {
         this.statusBar = statusBar
-        project.service<ClaudeService>().addListener(listener)
+        mainSession().addListener(listener)
     }
 
     override fun dispose() {
-        project.service<ClaudeService>().removeListener(listener)
+        mainSession().removeListener(listener)
         statusBar = null
     }
+
+    private fun mainSession() =
+        project.service<ClaudeSessionManager>().getOrCreateSession(ClaudeSessionManager.DEFAULT_TAB_ID)
 
     override fun getTooltipText(): String =
         if (thinking) "Confer — Claude is working…" else "Confer — click to open"

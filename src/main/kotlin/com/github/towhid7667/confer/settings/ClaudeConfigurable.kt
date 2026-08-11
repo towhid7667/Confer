@@ -28,6 +28,8 @@ class ClaudeConfigurable : Configurable {
     private val bypassCheck = JBCheckBox("Allow \"Bypass permissions\" mode")
     private val autosaveCheck = JBCheckBox("Save all open files before sending a message")
     private val hideOnboardingCheck = JBCheckBox("Hide the onboarding checklist")
+    private val worktreeCheck = JBCheckBox("Run sessions in a new git worktree")
+    private val worktreeNameField = JBTextField()
     private val envVarsArea = JBTextArea(4, 40)
 
     override fun getDisplayName(): String = "Confer"
@@ -49,6 +51,11 @@ class ClaudeConfigurable : Configurable {
         row { cell(gitIgnoreCheck) }
         row { cell(autosaveCheck) }
         row { cell(hideOnboardingCheck) }
+        row { cell(worktreeCheck) }
+        row("Worktree name (optional):") {
+            cell(worktreeNameField)
+                .comment("Passed as --worktree [name]. Leave blank to let the CLI name it. Creates a new git worktree per session, isolating file changes.")
+        }
         row { cell(bypassCheck) }
         row {
             cell(JBLabel("Bypass permissions skips ALL tool-use confirmations. Only enable this in a sandbox you trust."))
@@ -106,6 +113,8 @@ class ClaudeConfigurable : Configurable {
             bypassCheck.isSelected != s.allowDangerouslySkipPermissions ||
             autosaveCheck.isSelected != s.autosave ||
             hideOnboardingCheck.isSelected != s.hideOnboarding ||
+            worktreeCheck.isSelected != s.useWorktree ||
+            worktreeNameField.text != s.worktreeName ||
             envVarsArea.text != s.environmentVariables
     }
 
@@ -118,6 +127,8 @@ class ClaudeConfigurable : Configurable {
         s.allowDangerouslySkipPermissions = bypassCheck.isSelected
         s.autosave = autosaveCheck.isSelected
         s.hideOnboarding = hideOnboardingCheck.isSelected
+        s.useWorktree = worktreeCheck.isSelected
+        s.worktreeName = worktreeNameField.text
         s.environmentVariables = envVarsArea.text
     }
 
@@ -130,6 +141,8 @@ class ClaudeConfigurable : Configurable {
         bypassCheck.isSelected = s.allowDangerouslySkipPermissions
         autosaveCheck.isSelected = s.autosave
         hideOnboardingCheck.isSelected = s.hideOnboarding
+        worktreeCheck.isSelected = s.useWorktree
+        worktreeNameField.text = s.worktreeName
         envVarsArea.text = s.environmentVariables
         testResultLabel.text = " "
     }

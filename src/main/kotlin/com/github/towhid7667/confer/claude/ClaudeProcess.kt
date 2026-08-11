@@ -18,6 +18,8 @@ class ClaudeProcess(
     model: String = "default",
     resumeSessionId: String? = null,
     extraEnv: Map<String, String> = emptyMap(),
+    connectIde: Boolean = false,
+    worktreeName: String? = null,
 ) : Disposable {
 
     private val handler: OSProcessHandler
@@ -38,6 +40,13 @@ class ClaudeProcess(
             }
             if (!resumeSessionId.isNullOrBlank()) {
                 add("--resume"); add(resumeSessionId)
+            }
+            if (connectIde) {
+                add("--ide")
+            }
+            if (worktreeName != null) {
+                add("--worktree")
+                if (worktreeName.isNotBlank()) add(worktreeName)
             }
         }
 

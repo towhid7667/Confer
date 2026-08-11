@@ -23,6 +23,9 @@ class ClaudeSettings : PersistentStateComponent<ClaudeSettings.State> {
         var allowDangerouslySkipPermissions: Boolean = false,
         var hideOnboarding: Boolean = false,
         var autosave: Boolean = false,
+        var selectionContextHidden: Boolean = false,
+        var useWorktree: Boolean = false,
+        var worktreeName: String = "",
         /** One "KEY=VALUE" pair per line; merged into the claude process environment. */
         var environmentVariables: String = "",
     )
@@ -66,6 +69,18 @@ class ClaudeSettings : PersistentStateComponent<ClaudeSettings.State> {
     var autosave: Boolean
         get() = myState.autosave
         set(value) { myState.autosave = value }
+
+    var selectionContextHidden: Boolean
+        get() = myState.selectionContextHidden
+        set(value) { myState.selectionContextHidden = value }
+
+    var useWorktree: Boolean
+        get() = myState.useWorktree
+        set(value) { myState.useWorktree = value }
+
+    var worktreeName: String
+        get() = myState.worktreeName
+        set(value) { myState.worktreeName = value }
 
     var environmentVariables: String
         get() = myState.environmentVariables

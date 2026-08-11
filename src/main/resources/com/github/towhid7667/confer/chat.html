@@ -114,11 +114,18 @@
 
   .hist-group-hdr { margin: 12px 0 4px; font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--cc-fg-faint); }
   .hist-group-hdr:first-child { margin-top: 0; }
-  .hist-row { padding: 7px 8px; border-radius: var(--cc-radius-sm); cursor: pointer; }
+  .hist-row { padding: 7px 8px; border-radius: var(--cc-radius-sm); cursor: pointer; display: flex; align-items: center; gap: 8px; }
   .hist-row:hover { background: var(--cc-bg-hover); }
+  .hist-row:hover .hist-actions { opacity: 1; }
+  .hist-main { flex: 1; min-width: 0; }
   .hist-preview { font-size: 12px; color: var(--cc-fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .hist-time { font-size: 10px; color: var(--cc-fg-faint); }
   .hist-empty { color: var(--cc-fg-faint); font-size: 12px; padding: 6px 0; }
+  .hist-actions { display: flex; gap: 2px; opacity: 0; flex-shrink: 0; }
+  .hist-action-btn { background: none; border: none; color: var(--cc-fg-faint); cursor: pointer; padding: 3px 5px; border-radius: var(--cc-radius-sm); font-size: 11px; }
+  .hist-action-btn:hover { background: var(--cc-bg-active); color: var(--cc-fg); }
+  .hist-search { width: 100%; margin-bottom: 10px; padding: 6px 8px; font-size: 12px; border-radius: var(--cc-radius-sm); border: 1px solid var(--cc-border); background: var(--cc-bg-input); color: var(--cc-fg); }
+  .hist-rename-input { width: 100%; font-size: 12px; padding: 2px 4px; border-radius: var(--cc-radius-sm); border: 1px solid var(--cc-accent); background: var(--cc-bg-input); color: var(--cc-fg); }
 
   .ob-item { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--cc-border-subtle); }
   .ob-item:last-child { border-bottom: none; }
@@ -133,6 +140,11 @@
   .plan-btn { font-size: 11.5px; padding: 4px 10px; border-radius: var(--cc-radius-sm); border: 1px solid; cursor: pointer; }
   .plan-approve { background: var(--cc-diff-add-bg); color: var(--cc-success); border-color: var(--cc-diff-add-gutter); }
   .plan-reject { background: var(--cc-diff-del-bg); color: var(--cc-error); border-color: var(--cc-diff-del-gutter); }
+
+  .signin-row { margin: 8px 16px; }
+  .signin-btn { font-size: 11.5px; padding: 5px 12px; border-radius: var(--cc-radius-sm); border: 1px solid var(--cc-accent-border); background: var(--cc-accent-muted); color: var(--cc-accent); cursor: pointer; }
+  .signin-btn:hover { background: var(--cc-accent); color: white; }
+  .signin-btn:disabled { opacity: 0.6; cursor: default; }
 
   /* ── Empty state ──────────────────────────── */
   #empty { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; padding: 20px; user-select: none; }
@@ -633,6 +645,7 @@ $selEye.addEventListener('click', function() {
   selectionHidden = !selectionHidden;
   $selEye.textContent = selectionHidden ? '🙈' : '👁';
   $selIndicator.classList.toggle('hidden-ctx', selectionHidden);
+  if (window.__selectionHiddenBridge__) window.__selectionHiddenBridge__(selectionHidden ? '1' : '0');
 });
 
 /* ── Turn / streaming state ──────────── */
@@ -1123,8 +1136,32 @@ function finishTextBlock() {
   if (!activeTextEl) return;
   activeTextEl.innerHTML = renderMarkdown(activeTextRaw);
   lastTurnTextRaw = activeTextRaw;
+  maybeShowSignInAction(activeTextRaw);
   activeTextEl = null;
   activeTextRaw = '';
+}
+
+/* ── Auth: detect "not logged in" style responses and offer a sign-in action ──
+   The CLI has no structured auth-error event; these always arrive as plain
+   assistant text (verified: "/rewind isn't available..." arrives the same way),
+   so "/login" appearing in the reply is the only reliable signal. */
+function maybeShowSignInAction(text) {
+  if (!currentBlock || text.indexOf('/login') === -1) return;
+  if (currentBlock.querySelector('.signin-row')) return;
+  const row = document.createElement('div');
+  row.className = 'signin-row';
+  const btn = document.createElement('button');
+  btn.className = 'signin-btn';
+  btn.type = 'button';
+  btn.textContent = 'Run /login';
+  btn.addEventListener('click', function() {
+    btn.disabled = true;
+    btn.textContent = 'Signing in…';
+    $prompt.value = '/login';
+    doSend();
+  });
+  row.appendChild(btn);
+  currentBlock.appendChild(row);
 }
 
 function onBlockStop() {
@@ -1408,6 +1445,10 @@ document.addEventListener('keydown', function(e) {
     e.preventDefault();
     toggleAllThinking();
   }
+  if (e.ctrlKey && e.shiftKey && !e.altKey && (e.key === 't' || e.key === 'T')) {
+    e.preventDefault();
+    if (window.__reopenLastClosedBridge__) window.__reopenLastClosedBridge__();
+  }
 });
 
 /* ── Delegated clicks: copy, mentions ─── */
@@ -1455,6 +1496,9 @@ window.initSettings = function(settings) {
   $modelBtn.textContent = MODEL_LABELS[currentModel] || currentModel;
   ctrlEnterToSend = !!settings.ctrlEnterToSend;
   allowBypass = !!settings.allowBypass;
+  selectionHidden = !!settings.selectionHidden;
+  $selEye.textContent = selectionHidden ? '🙈' : '👁';
+  $selIndicator.classList.toggle('hidden-ctx', selectionHidden);
   if (!settings.hideOnboarding) showOnboardingOverlay();
 };
 
@@ -1639,10 +1683,12 @@ $overflowBtn.addEventListener('click', function(e) {
     { id: 'editor-tab', label: 'Open in Editor Tab' },
     { id: 'new-window', label: 'Open in New Window' },
     { id: 'settings',   label: 'Settings' },
+    { id: 'logout',     label: 'Logout' },
   ], function(id) {
     if (id === 'editor-tab' && window.__openEditorTabBridge__) window.__openEditorTabBridge__();
     if (id === 'new-window' && window.__openNewWindowBridge__) window.__openNewWindowBridge__();
     if (id === 'settings'   && window.__openSettingsBridge__) window.__openSettingsBridge__();
+    if (id === 'logout')    { $prompt.value = '/logout'; doSend(); }
   });
 });
 
@@ -1695,15 +1741,23 @@ function showMcpOverlay() {
     return;
   }
   body.innerHTML =
-    '<div class="ov-note">Reported by the claude CLI at session start. Reconnect/Authenticate/enable controls aren\'t wired up yet — Confer only mirrors CLI state, it doesn\'t manage MCP servers.</div>' +
+    '<div class="ov-note">Reported by the claude CLI at session start. Reconnect restarts the session (resuming your conversation) so servers reattach fresh — there\'s no per-server reconnect in the CLI\'s stream-json protocol. Authenticate/enable aren\'t wired up — Confer only mirrors CLI state, it doesn\'t manage MCP servers.</div>' +
     latestMcpServers.map(function(s) {
       return '<div class="mcp-row">' +
         '<span class="mcp-dot ' + mcpDotClass(s.status) + '"></span>' +
         '<span class="mcp-name">' + esc(s.name) + '</span>' +
         '<span class="mcp-status">' + esc(s.status) + '</span>' +
-        '<button class="mcp-action" disabled>Reconnect</button>' +
+        '<button class="mcp-action" data-name="' + esc(s.name) + '">Reconnect</button>' +
         '</div>';
     }).join('');
+  body.querySelectorAll('.mcp-action').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      btn.disabled = true;
+      btn.textContent = 'Reconnecting…';
+      if (window.__reconnectMcpBridge__) window.__reconnectMcpBridge__();
+      closeOverlay();
+    });
+  });
 }
 
 /* ── /plugins — no safe backend to read/write plugin config, honest mock ── */
@@ -1739,13 +1793,44 @@ function showHistoryOverlay() {
   window.__sessionHistoryBridge__();
 }
 
+let lastSessionsList = [];
+
 window.receiveSessionHistory = function(json) {
   if ($overlayTitle.textContent !== 'Session History') return;
-  const body = $overlayBody;
   let sessions = [];
   try { sessions = JSON.parse(json); } catch(_) {}
-  sessions = Array.isArray(sessions) ? sessions : [];
-  if (!sessions.length) { body.innerHTML = '<div class="hist-empty">No past sessions found for this project.</div>'; return; }
+  lastSessionsList = Array.isArray(sessions) ? sessions : [];
+  renderSessionList('');
+};
+
+function renderSessionList(query) {
+  const body = $overlayBody;
+  const q = query.trim().toLowerCase();
+  const sessions = q
+    ? lastSessionsList.filter(function(s) { return s.title.toLowerCase().indexOf(q) !== -1; })
+    : lastSessionsList;
+
+  body.innerHTML = '';
+
+  const search = document.createElement('input');
+  search.type = 'text';
+  search.className = 'hist-search';
+  search.placeholder = 'Search sessions…';
+  search.value = query;
+  search.addEventListener('input', function() { renderSessionList(search.value); });
+  body.appendChild(search);
+
+  if (!lastSessionsList.length) {
+    body.appendChild(makeEl('div', 'hist-empty', 'No past sessions found for this project.'));
+    return;
+  }
+  if (!sessions.length) {
+    body.appendChild(makeEl('div', 'hist-empty', 'No sessions match "' + query + '".'));
+    return;
+  }
+
+  const note = makeEl('div', 'ov-note', 'Resuming continues the session server-side. Past messages aren\'t replayed into this view yet.');
+  body.appendChild(note);
 
   const groups = {};
   const order = ['Today', 'Yesterday', 'Last 7 days', 'Older'];
@@ -1754,27 +1839,95 @@ window.receiveSessionHistory = function(json) {
     (groups[g] = groups[g] || []).push(s);
   });
 
-  body.innerHTML = '<div class="ov-note">Resuming continues the session server-side. Past messages aren\'t replayed into this view yet.</div>';
   order.forEach(function(g) {
     if (!groups[g]) return;
-    const hdr = document.createElement('div');
-    hdr.className = 'hist-group-hdr';
-    hdr.textContent = g;
-    body.appendChild(hdr);
-    groups[g].forEach(function(s) {
-      const row = document.createElement('div');
-      row.className = 'hist-row';
-      row.innerHTML =
-        '<div class="hist-preview">' + esc(s.preview) + '</div>' +
-        '<div class="hist-time">' + new Date(s.timestamp).toLocaleString() + '</div>';
-      row.addEventListener('click', function() {
-        closeOverlay();
-        if (window.__resumeSessionBridge__) window.__resumeSessionBridge__(s.id);
-      });
-      body.appendChild(row);
-    });
+    body.appendChild(makeEl('div', 'hist-group-hdr', g));
+    groups[g].forEach(function(s) { body.appendChild(buildSessionRow(s)); });
   });
-};
+}
+
+function makeEl(tag, className, text) {
+  const el = document.createElement('div');
+  el.className = className;
+  el.textContent = text;
+  return el;
+}
+
+function buildSessionRow(s) {
+  const row = document.createElement('div');
+  row.className = 'hist-row';
+
+  const main = document.createElement('div');
+  main.className = 'hist-main';
+  main.innerHTML =
+    '<div class="hist-preview">' + esc(s.title) + '</div>' +
+    '<div class="hist-time">' + new Date(s.timestamp).toLocaleString() + '</div>';
+  main.addEventListener('click', function() {
+    closeOverlay();
+    if (window.__resumeSessionBridge__) window.__resumeSessionBridge__(s.id);
+  });
+  row.appendChild(main);
+
+  const actions = document.createElement('div');
+  actions.className = 'hist-actions';
+
+  const renameBtn = document.createElement('button');
+  renameBtn.className = 'hist-action-btn';
+  renameBtn.type = 'button';
+  renameBtn.title = 'Rename';
+  renameBtn.textContent = '✎';
+  renameBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    startRenaming(row, main, s);
+  });
+  actions.appendChild(renameBtn);
+
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'hist-action-btn';
+  deleteBtn.type = 'button';
+  deleteBtn.title = 'Delete';
+  deleteBtn.textContent = '🗑';
+  deleteBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    lastSessionsList = lastSessionsList.filter(function(x) { return x.id !== s.id; });
+    row.remove();
+    if (window.__deleteSessionBridge__) window.__deleteSessionBridge__(s.id);
+  });
+  actions.appendChild(deleteBtn);
+
+  row.appendChild(actions);
+  return row;
+}
+
+function startRenaming(row, main, s) {
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'hist-rename-input';
+  input.value = s.title;
+  main.innerHTML = '';
+  main.appendChild(input);
+  input.focus();
+  input.select();
+
+  function commit() {
+    const title = input.value.trim();
+    if (title && title !== s.title) {
+      s.title = title;
+      if (window.__renameSessionBridge__) {
+        window.__renameSessionBridge__(JSON.stringify({ sessionId: s.id, title: title }));
+      }
+    }
+    main.innerHTML =
+      '<div class="hist-preview">' + esc(s.title) + '</div>' +
+      '<div class="hist-time">' + new Date(s.timestamp).toLocaleString() + '</div>';
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { input.value = s.title; input.blur(); }
+    e.stopPropagation();
+  });
+}
 
 /* ── Onboarding checklist ─────────────── */
 const ONBOARDING_ITEMS = [
@@ -1820,13 +1973,12 @@ function showPlanRow() {
   const row = document.createElement('div');
   row.className = 'plan-row';
   row.innerHTML =
-    '<span class="plan-row-label">Plan ready — review the full document, then respond.</span>' +
+    '<span class="plan-row-label">Plan ready — edit the document to leave inline feedback, then respond.</span>' +
     '<button class="plan-btn plan-approve" type="button">✓ Approve</button>' +
     '<button class="plan-btn plan-reject" type="button">✗ Reject</button>';
   row.querySelector('.plan-approve').addEventListener('click', function() {
     row.remove();
-    $prompt.value = 'The plan looks good — please proceed.';
-    doSend();
+    if (window.__planApproveBridge__) window.__planApproveBridge__();
   });
   row.querySelector('.plan-reject').addEventListener('click', function() {
     row.remove();
@@ -1837,6 +1989,13 @@ function showPlanRow() {
   $thread.insertBefore(row, $scrollPill);
   scrollEnd();
 }
+
+/** Approve reads back the (possibly user-edited) plan document; see planApproveQuery in Kotlin. */
+window.receivePlanFeedback = function(json) {
+  let d = {};
+  try { d = JSON.parse(json); } catch(_) {}
+  if (d.text) { $prompt.value = d.text; doSend(); }
+};
 
 /* ── Context meter ────────────────────── */
 function renderContextMeter(tokensUsed, contextWindow) {

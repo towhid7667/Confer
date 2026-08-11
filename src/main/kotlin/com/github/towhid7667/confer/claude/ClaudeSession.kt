@@ -1,16 +1,21 @@
 package com.github.towhid7667.confer.claude
 
+import com.github.towhid7667.confer.mcp.ConferIdeServerService
 import com.github.towhid7667.confer.settings.ClaudeSettings
 import com.google.gson.Gson
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.components.Service
+import com.intellij.openapi.components.service
 import com.intellij.openapi.diagnostic.thisLogger
 import com.intellij.openapi.project.Project
 import java.util.concurrent.CopyOnWriteArrayList
 
-@Service(Service.Level.PROJECT)
-class ClaudeService(private val project: Project) : Disposable {
+/**
+ * One `claude` CLI subprocess and its event stream, owned by a single chat tab/window.
+ * Instantiated per-session by [ClaudeSessionManager] — not an IntelliJ service itself, since
+ * multiple independent instances coexist within one project (one per open Confer tab).
+ */
+class ClaudeSession(private val project: Project) : Disposable {
 
     private val logger = thisLogger()
     private val gson = Gson()
@@ -50,6 +55,7 @@ class ClaudeService(private val project: Project) : Disposable {
         val workDir = project.basePath ?: System.getProperty("user.home")
         val resumeId = pendingResumeId
         pendingResumeId = null
+        val ideStarted = project.service<ConferIdeServerService>().ensureStarted()
         try {
             val p = ClaudeProcess(
                 settings.claudeBinaryPath,
@@ -58,6 +64,8 @@ class ClaudeService(private val project: Project) : Disposable {
                 settings.model,
                 resumeId,
                 settings.parsedEnvironmentVariables(),
+                connectIde = ideStarted,
+                worktreeName = if (settings.useWorktree) settings.worktreeName else null,
             )
             process = p
             p.start { line ->

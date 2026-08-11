@@ -9,6 +9,11 @@ plugins {
 dependencies {
     testImplementation("junit:junit:4.13.2")
 
+    // Lightweight, dependency-free WebSocket server for the local IDE MCP server (mcp/ package).
+    // IntelliJ Platform bundles Netty at runtime but doesn't expose it on the plugin compile
+    // classpath, so this is a small standalone dependency rather than relying on platform internals.
+    implementation("org.java-websocket:Java-WebSocket:1.5.7")
+
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
         intellijIdea("2025.2.6.2")

@@ -51,6 +51,7 @@
             displayName="Confer"
         />
         <fileEditorProvider implementation="com.github.towhid7667.confer.toolWindow.ConferFileEditorProvider"/>
+        <postStartupActivity implementation="com.github.towhid7667.confer.mcp.ConferIdeStartupActivity"/>
         <statusBarWidgetFactory id="ConferStatusBarWidget" implementation="com.github.towhid7667.confer.statusbar.ConferStatusBarWidgetFactory"/>
         <notificationGroup id="Confer" displayType="BALLOON"/>
     </extensions>

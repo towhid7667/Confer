@@ -2,22 +2,26 @@ package com.github.towhid7667.confer.toolWindow
 
 import com.github.towhid7667.confer.claude.ClaudeEvent
 import com.github.towhid7667.confer.claude.ClaudeEventListener
-import com.github.towhid7667.confer.claude.ClaudeService
+import com.github.towhid7667.confer.claude.ClaudeSessionManager
 import com.github.towhid7667.confer.diagnostics.DiagnosticsCollector
 import com.github.towhid7667.confer.settings.ClaudeConfigurable
 import com.github.towhid7667.confer.settings.ClaudeSettings
+import com.github.towhid7667.confer.settings.ConferSessionMetaStore
+import com.github.towhid7667.confer.util.writeFileContentOnEdt
 import com.google.gson.Gson
 import com.google.gson.JsonElement
 import com.google.gson.JsonParser
 import com.intellij.diff.DiffContentFactory
 import com.intellij.diff.DiffManager
 import com.intellij.diff.requests.SimpleDiffRequest
+import com.intellij.execution.configurations.GeneralCommandLine
+import com.intellij.execution.util.ExecUtil
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ReadAction
-import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.components.service
+import com.intellij.util.EnvironmentUtil
 import com.intellij.openapi.editor.Editor
 import com.intellij.openapi.editor.EditorFactory
 import com.intellij.openapi.editor.colors.EditorColorsListener
@@ -55,6 +59,9 @@ import java.awt.BorderLayout
 import javax.swing.JFrame
 
 private val EXCLUDED_DIRS = setOf(".git", "node_modules", "build", "out", "dist", ".idea", ".gradle", "target")
+
+/** `.env`-pattern files are never surfaced in context-injection UI (search results, auto-selection context). */
+private fun isDenyRuleFile(name: String): Boolean = name == ".env" || name.startsWith(".env.")
 private const val FILE_SEARCH_VISIT_CAP = 4000
 private const val FILE_SEARCH_RESULT_CAP = 30
 
@@ -67,12 +74,19 @@ private data class PendingEdit(
     val toolName: String,
 )
 
-class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(BorderLayout()) {
+class ConferChatPanel(
+    private val project: Project,
+    private val sessionId: String = ClaudeSessionManager.DEFAULT_TAB_ID,
+) : JBPanel<ConferChatPanel>(BorderLayout()) {
 
     private val gson         = Gson()
     private var browser: JBCefBrowser? = null
     private val pendingEdits = mutableMapOf<String, PendingEdit>()
     private var includeDiagnostics = false
+    private var lastSentPrompt: String? = null
+    private val pendingEditNotes = mutableListOf<String>()
+    private var planVFile: LightVirtualFile? = null
+    private var originalPlanText: String = ""
 
     init {
         if (!JBCefApp.isSupported()) {
@@ -88,8 +102,9 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
     private fun initBrowser() {
         val b        = JBCefBrowser()
         browser      = b
-        val svc      = project.service<ClaudeService>()
-        val settings = ClaudeSettings.getInstance()
+        val svc       = project.service<ClaudeSessionManager>().getOrCreateSession(sessionId)
+        val settings  = ClaudeSettings.getInstance()
+        val metaStore = ConferSessionMetaStore.getInstance(project)
 
         Disposer.register(project, b)
 
@@ -112,11 +127,18 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         val resumeSessionQuery  = JBCefJSQuery.create(b as JBCefBrowserBase)
         val planQuery           = JBCefJSQuery.create(b as JBCefBrowserBase)
         val dismissOnboardingQuery = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val renameSessionQuery  = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val deleteSessionQuery  = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val reopenLastClosedQuery = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val selectionHiddenQuery  = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val reconnectMcpQuery     = JBCefJSQuery.create(b as JBCefBrowserBase)
+        val planApproveQuery      = JBCefJSQuery.create(b as JBCefBrowserBase)
 
         sendQuery.addHandler       { text   ->
             if (settings.autosave) {
                 ApplicationManager.getApplication().invokeAndWait { FileDocumentManager.getInstance().saveAllDocuments() }
             }
+            lastSentPrompt = text
             svc.sendPrompt(buildPromptWithContext(text))
             null
         }
@@ -141,13 +163,18 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
             null
         }
         modelQuery.addHandler       { model -> settings.model = model; svc.stop();           null }
-        newSessionQuery.addHandler  { _      -> svc.stop(); pendingEdits.clear();             null }
+        newSessionQuery.addHandler  { _      ->
+            svc.currentSessionId?.let { metaStore.markClosed(it) }
+            svc.stop()
+            pendingEdits.clear()
+            null
+        }
         editorTabQuery.addHandler   { _      -> openInEditorTab();                           null }
         newWindowQuery.addHandler   { _      -> openInNewWindow();                           null }
         settingsQuery.addHandler    { _      -> openSettings();                              null }
         sessionHistoryQuery.addHandler { _ ->
             browser?.cefBrowser?.executeJavaScript(
-                "window.receiveSessionHistory(${gson.toJson(sessionHistoryJson())});", "", 0,
+                "window.receiveSessionHistory(${gson.toJson(sessionHistoryJson(metaStore))});", "", 0,
             )
             null
         }
@@ -161,6 +188,49 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         }
         planQuery.addHandler           { md  -> openPlanDocument(md);                        null }
         dismissOnboardingQuery.addHandler { _ -> settings.hideOnboarding = true;              null }
+        renameSessionQuery.addHandler { json ->
+            try {
+                val d = JsonParser.parseString(json).asJsonObject
+                metaStore.rename(d.get("sessionId").asString, d.get("title").asString)
+            } catch (_: Exception) { /* malformed payload from JS, ignore */ }
+            browser?.cefBrowser?.executeJavaScript(
+                "window.receiveSessionHistory(${gson.toJson(sessionHistoryJson(metaStore))});", "", 0,
+            )
+            null
+        }
+        deleteSessionQuery.addHandler { id ->
+            metaStore.hide(id)
+            if (svc.currentSessionId == id) svc.stop()
+            browser?.cefBrowser?.executeJavaScript(
+                "window.receiveSessionHistory(${gson.toJson(sessionHistoryJson(metaStore))});", "", 0,
+            )
+            null
+        }
+        selectionHiddenQuery.addHandler { value -> settings.selectionContextHidden = (value == "1"); null }
+        reconnectMcpQuery.addHandler { _ ->
+            // No per-server reconnect exists over stream-json — resuming the session is the only
+            // lever, but it does re-establish MCP connections (including our own IDE server) fresh.
+            svc.currentSessionId?.let { svc.resume(it) } ?: svc.stop()
+            null
+        }
+        planApproveQuery.addHandler { _ ->
+            val text = buildPlanApprovalText()
+            browser?.cefBrowser?.executeJavaScript(
+                "window.receivePlanFeedback(${gson.toJson(mapOf("text" to text))});", "", 0,
+            )
+            null
+        }
+        reopenLastClosedQuery.addHandler { _ ->
+            val id = metaStore.lastClosedSessionId()
+            if (id != null) {
+                svc.resume(id)
+                pendingEdits.clear()
+                browser?.cefBrowser?.executeJavaScript(
+                    "window.loadHistoricalTranscript(${gson.toJson(loadSessionTranscript(id))});", "", 0,
+                )
+            }
+            null
+        }
 
         b.jbCefClient.addLoadHandler(object : CefLoadHandlerAdapter() {
             override fun onLoadEnd(cefBrowser: CefBrowser, frame: CefFrame, httpStatusCode: Int) {
@@ -184,6 +254,12 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
                 cefBrowser.executeJavaScript("window.__dismissOnboardingBridge__=function(){${dismissOnboardingQuery.inject("'d'")}};", "", 0)
                 cefBrowser.executeJavaScript("window.__fileSearchBridge__=function(q){${fileSearchQuery.inject("q")}};", "", 0)
                 cefBrowser.executeJavaScript("window.__sessionHistoryBridge__=function(){${sessionHistoryQuery.inject("'sh'")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__renameSessionBridge__=function(json){${renameSessionQuery.inject("json")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__deleteSessionBridge__=function(id){${deleteSessionQuery.inject("id")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__reopenLastClosedBridge__=function(){${reopenLastClosedQuery.inject("'r'")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__selectionHiddenBridge__=function(v){${selectionHiddenQuery.inject("v")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__reconnectMcpBridge__=function(){${reconnectMcpQuery.inject("'r'")}};", "", 0)
+                cefBrowser.executeJavaScript("window.__planApproveBridge__=function(){${planApproveQuery.inject("'p'")}};", "", 0)
                 cefBrowser.executeJavaScript(
                     "window.initSettings(${
                         gson.toJson(
@@ -194,6 +270,7 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
                                 "ctrlEnterToSend" to settings.useCtrlEnterToSend,
                                 "allowBypass" to settings.allowDangerouslySkipPermissions,
                                 "hideOnboarding" to settings.hideOnboarding,
+                                "selectionHidden" to settings.selectionContextHidden,
                             ),
                         )
                     });",
@@ -257,6 +334,7 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         ApplicationManager.getApplication().invokeLater {
             val editor = FileEditorManager.getInstance(project).selectedTextEditor ?: return@invokeLater
             val vFile  = FileDocumentManager.getInstance().getFile(editor.document) ?: return@invokeLater
+            if (isDenyRuleFile(vFile.name)) return@invokeLater
             val sel    = editor.selectionModel
             val doc    = editor.document
             val startLine = doc.getLineNumber(sel.selectionStart) + 1
@@ -270,7 +348,7 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
     private fun pushSelectionIndicator(editor: Editor) {
         val vFile = FileDocumentManager.getInstance().getFile(editor.document)
         val sel = editor.selectionModel
-        if (vFile == null || !sel.hasSelection()) {
+        if (vFile == null || !sel.hasSelection() || isDenyRuleFile(vFile.name)) {
             clearSelectionIndicator()
             return
         }
@@ -310,6 +388,7 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
             for (child in dir.children) {
                 if (visited++ > FILE_SEARCH_VISIT_CAP) return
                 if (child.isDirectory && child.name in EXCLUDED_DIRS) continue
+                if (!child.isDirectory && isDenyRuleFile(child.name)) continue
                 if (changeListManager?.isIgnoredFile(child) == true) continue
 
                 val score = fuzzyScore(q, child.name)
@@ -350,13 +429,16 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         return File(System.getProperty("user.home"), ".claude/projects/$encoded")
     }
 
-    private fun sessionHistoryJson(): String {
+    private fun sessionHistoryJson(metaStore: ConferSessionMetaStore): String {
         val dir = sessionsDir()
         if (dir == null || !dir.isDirectory) return "[]"
         val sessions = dir.listFiles { f -> f.extension == "jsonl" }
             ?.mapNotNull { file ->
+                val id = file.nameWithoutExtension
+                if (metaStore.isHidden(id)) return@mapNotNull null
                 val preview = firstUserMessagePreview(file) ?: return@mapNotNull null
-                mapOf("id" to file.nameWithoutExtension, "preview" to preview, "timestamp" to file.lastModified())
+                val title = metaStore.customTitle(id) ?: preview
+                mapOf("id" to id, "preview" to preview, "title" to title, "timestamp" to file.lastModified())
             }
             ?.sortedByDescending { it["timestamp"] as Long }
             ?: emptyList()
@@ -430,23 +512,51 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         ApplicationManager.getApplication().invokeLater {
             val fileType = FileTypeManager.getInstance().getFileTypeByExtension("md")
             val vFile = LightVirtualFile("Plan.md", fileType, markdown)
+            planVFile = vFile
+            originalPlanText = markdown
             FileEditorManager.getInstance(project).openFile(vFile, true)
         }
     }
 
-    private fun openInEditorTab() {
-        ApplicationManager.getApplication().invokeLater {
-            FileEditorManager.getInstance(project).openFile(ConferSessionVirtualFile(), true)
+    /**
+     * Approve reads back whatever is currently in the Plan.md editor tab — if the user added
+     * inline notes there before approving, those are fed back as feedback instead of the generic
+     * "looks good" message, closing the "inline comments on the plan doc" gap without needing a
+     * dedicated comment-thread UI: the plan document itself is the feedback surface.
+     */
+    private fun buildPlanApprovalText(): String {
+        val currentText = planVFile?.let { FileDocumentManager.getInstance().getDocument(it)?.text }
+            ?: originalPlanText
+        return if (currentText.trim() != originalPlanText.trim()) {
+            "I've reviewed and edited the plan document with inline notes — please read them and " +
+                "incorporate this feedback before proceeding:\n\n$currentText"
+        } else {
+            "The plan looks good — please proceed."
         }
     }
 
+    /** Each new tab gets an independent session — its own process and conversation history. */
+    private fun openInEditorTab() {
+        ApplicationManager.getApplication().invokeLater {
+            val newSessionId = ClaudeSessionManager.newTabId()
+            FileEditorManager.getInstance(project).openFile(ConferSessionVirtualFile(newSessionId), true)
+        }
+    }
+
+    /** Each new window gets an independent session; the session is closed when the window closes. */
     private fun openInNewWindow() {
         ApplicationManager.getApplication().invokeLater {
+            val newSessionId = ClaudeSessionManager.newTabId()
             val frame = JFrame("Confer")
-            frame.contentPane.add(ConferChatPanel(project))
+            frame.contentPane.add(ConferChatPanel(project, newSessionId))
             frame.setSize(420, 640)
             frame.setLocationRelativeTo(null)
             frame.defaultCloseOperation = JFrame.DISPOSE_ON_CLOSE
+            frame.addWindowListener(object : java.awt.event.WindowAdapter() {
+                override fun windowClosed(e: java.awt.event.WindowEvent) {
+                    project.service<ClaudeSessionManager>().closeSession(newSessionId)
+                }
+            })
             frame.isVisible = true
         }
     }
@@ -472,16 +582,61 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
     }
 
     private fun buildPromptWithContext(text: String): String {
-        if (!includeDiagnostics) return text
-        val diag = DiagnosticsCollector.collect(project) ?: return text
-        return "$diag\n\n$text"
+        val parts = mutableListOf<String>()
+        if (pendingEditNotes.isNotEmpty()) {
+            parts += pendingEditNotes
+            pendingEditNotes.clear()
+        }
+        if (includeDiagnostics) {
+            DiagnosticsCollector.collect(project)?.let { parts += it }
+        }
+        parts += text
+        return parts.joinToString("\n\n")
     }
 
     private fun handleIncomingEvent(event: ClaudeEvent) {
         if (event is ClaudeEvent.ToolUse && event.toolName in WRITE_TOOLS) {
             interceptWriteTool(event)
         }
+        if (event is ClaudeEvent.TurnEnd) {
+            maybeGenerateTitle(event.sessionId)
+        }
         toJs(event)?.let { browser?.cefBrowser?.executeJavaScript(it, "", 0) }
+    }
+
+    /** Best-effort, one-shot AI title for a fresh session, generated from its first prompt via `claude -p`. */
+    private fun maybeGenerateTitle(sessionId: String?) {
+        val id = sessionId ?: return
+        val prompt = lastSentPrompt ?: return
+        val metaStore = ConferSessionMetaStore.getInstance(project)
+        if (!metaStore.claimTitleGeneration(id)) return
+
+        ApplicationManager.getApplication().executeOnPooledThread {
+            try {
+                val settings = ClaudeSettings.getInstance()
+                val cmd = GeneralCommandLine(settings.claudeBinaryPath)
+                    .withParameters(
+                        "-p",
+                        "Summarize the following request as a 4-6 word conversation title. " +
+                            "Reply with only the title, no quotes, no trailing punctuation.\n\n$prompt",
+                    )
+                    .withWorkDirectory(project.basePath ?: System.getProperty("user.home"))
+                    .withEnvironment(EnvironmentUtil.getEnvironmentMap())
+                    .withCharset(Charsets.UTF_8)
+                val output = ExecUtil.execAndGetOutput(cmd, 15_000)
+                val title = output.stdout.trim().trim('"').take(60)
+                if (title.isNotEmpty()) {
+                    metaStore.rename(id, title)
+                    ApplicationManager.getApplication().invokeLater {
+                        browser?.cefBrowser?.executeJavaScript(
+                            "window.receiveSessionHistory(${gson.toJson(sessionHistoryJson(metaStore))});", "", 0,
+                        )
+                    }
+                }
+            } catch (_: Exception) {
+                // Best-effort — the preview-based title stays as the fallback.
+            }
+        }
     }
 
     private fun interceptWriteTool(event: ClaudeEvent.ToolUse) {
@@ -536,9 +691,18 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         DiffManager.getInstance().showDiff(project, request)
     }
 
-    /** "Keep": writes `content` (the proposed content, possibly edited by the user in the review card) to the file. */
+    /**
+     * "Keep": writes `content` (the proposed content, possibly edited by the user in the review card)
+     * to the file. If the user changed it from what Claude proposed, queue a note so the next prompt
+     * tells Claude what actually landed on disk — otherwise the CLI's own belief about the file
+     * silently diverges from reality.
+     */
     private fun applyPendingEdit(toolId: String, content: String) {
         val pending = pendingEdits.remove(toolId) ?: return
+        if (content != pending.proposedContent) {
+            pendingEditNotes += "Note: before accepting, I modified your proposed edit to " +
+                "${pending.filePath}. The file now actually contains:\n\n```\n$content\n```"
+        }
         writeFileContent(pending.filePath, content, "Claude: Keep Edit")
     }
 
@@ -548,23 +712,8 @@ class ConferChatPanel(private val project: Project) : JBPanel<ConferChatPanel>(B
         writeFileContent(pending.filePath, pending.originalContent, "Claude: Revert Edit")
     }
 
-    /** JCEF query handlers run on a background thread, not the EDT — WriteCommandAction requires the EDT, so this must hop over explicitly. */
-    private fun writeFileContent(filePath: String, content: String, commandName: String) {
-        ApplicationManager.getApplication().invokeLater {
-            val vFile = LocalFileSystem.getInstance().findFileByPath(filePath)
-                ?: LocalFileSystem.getInstance().refreshAndFindFileByPath(filePath)
-                ?: return@invokeLater
-
-            WriteCommandAction.runWriteCommandAction(project, commandName, null, Runnable {
-                val doc = FileDocumentManager.getInstance().getDocument(vFile)
-                if (doc != null) {
-                    doc.setText(content)
-                } else {
-                    vFile.setBinaryContent(content.toByteArray(Charsets.UTF_8))
-                }
-            })
-        }
-    }
+    private fun writeFileContent(filePath: String, content: String, commandName: String) =
+        writeFileContentOnEdt(project, filePath, content, commandName)
 
     private fun toJs(event: ClaudeEvent): String? = when (event) {
         is ClaudeEvent.Init -> jsCall(
