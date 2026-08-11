@@ -4,8 +4,17 @@
     <name>Confer</name>
     <vendor>towhid7667</vendor>
     <description><![CDATA[
-        <p><b>Confer</b> is a repository that provides a pure template to make it easier to create a new plugin project.</p>
-        <p>The main goal of this template is to speed up the setup phase of plugin development for both new and experienced developers by preconfiguring the project scaffold and CI, linking to the proper documentation pages, and keeping everything organized.</p>
+        <p><b>Confer</b> brings Claude Code into JetBrains IDEs as a native chat panel, wrapping the <code>claude</code> CLI as a subprocess instead of shelling out to a terminal.</p>
+        <ul>
+            <li><b>Streaming chat</b> with markdown rendering, collapsible thinking blocks, and inline tool-use/diff cards</li>
+            <li><b>Native diff review</b> for every edit, with a real pre-execution approval flow for IDE-initiated edits via a local MCP server</li>
+            <li><b>Multi-session tabs</b> — open in the sidebar, an editor tab, or a detached window, each with its own independent Claude process and history</li>
+            <li><b>Context injection</b> from your editor selection (<code>Shift+Alt+C</code>), fuzzy <code>@</code>-mention file search, and automatic active-selection context</li>
+            <li><b>Session history</b> with search, rename, and delete, backed by the CLI's own session transcripts</li>
+            <li><b>Plan mode</b> that opens as a full Markdown document you can edit and send back as feedback before approving</li>
+            <li>Permission modes, model switching, and a live cost/context-window meter</li>
+        </ul>
+        <p>Requires the <a href="https://code.claude.com/docs/en/overview">Claude Code CLI</a> to be installed and authenticated.</p>
     ]]></description>
 
     <depends>com.intellij.modules.platform</depends>

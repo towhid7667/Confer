@@ -2,8 +2,8 @@ package com.github.towhid7667.confer.claude
 
 import com.intellij.execution.configurations.GeneralCommandLine
 import com.intellij.execution.process.OSProcessHandler
-import com.intellij.execution.process.ProcessAdapter
 import com.intellij.execution.process.ProcessEvent
+import com.intellij.execution.process.ProcessListener
 import com.intellij.execution.process.ProcessOutputType
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.util.Key
@@ -62,7 +62,7 @@ class ClaudeProcess(
     }
 
     fun start(onLine: (String) -> Unit) {
-        handler.addProcessListener(object : ProcessAdapter() {
+        handler.addProcessListener(object : ProcessListener {
             override fun onTextAvailable(event: ProcessEvent, outputType: Key<*>) {
                 if (outputType != ProcessOutputType.STDOUT) return
                 synchronized(lineBuffer) {

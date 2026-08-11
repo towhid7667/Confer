@@ -43,7 +43,7 @@ class ConferToolWindowFactory : ToolWindowFactory {
         toolWindow.contentManager.addContent(content)
 
         val baseIcon = IconLoader.getIcon("/icons/confer.svg", ConferToolWindowFactory::class.java)
-        val dotIcon = LayeredIcon(baseIcon, DotIcon(Color(0xE5, 0xA4, 0x4C)))
+        val dotIcon = LayeredIcon.layeredIcon(arrayOf(baseIcon, DotIcon(Color(0xE5, 0xA4, 0x4C))))
 
         project.service<ClaudeSessionManager>().getOrCreateSession(ClaudeSessionManager.DEFAULT_TAB_ID).addListener { event ->
             if (toolWindow.isVisible) return@addListener

@@ -3,7 +3,7 @@ package com.github.towhid7667.confer.diagnostics
 import com.intellij.codeInsight.daemon.impl.DaemonCodeAnalyzerImpl
 import com.intellij.codeInsight.daemon.impl.HighlightInfo
 import com.intellij.lang.annotation.HighlightSeverity
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.fileEditor.FileDocumentManager
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.project.Project
@@ -17,7 +17,7 @@ object DiagnosticsCollector {
         val file   = FileDocumentManager.getInstance().getFile(editor.document) ?: return null
         val doc    = editor.document
 
-        val highlights: List<HighlightInfo> = ReadAction.compute<List<HighlightInfo>, Throwable> {
+        val highlights: List<HighlightInfo> = runReadAction {
             DaemonCodeAnalyzerImpl.getHighlights(doc, HighlightSeverity.WARNING, project)
         }
 

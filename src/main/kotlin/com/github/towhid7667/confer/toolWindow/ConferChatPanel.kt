@@ -19,7 +19,7 @@ import com.intellij.execution.util.ExecUtil
 import com.intellij.ide.ui.LafManagerListener
 import com.intellij.openapi.Disposable
 import com.intellij.openapi.application.ApplicationManager
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.runReadAction
 import com.intellij.openapi.components.service
 import com.intellij.util.EnvironmentUtil
 import com.intellij.openapi.editor.Editor
@@ -400,7 +400,7 @@ class ConferChatPanel(
             }
         }
 
-        ReadAction.run<Exception> { walk(base) }
+        runReadAction { walk(base) }
 
         val top = results
             .sortedWith(compareByDescending<Match> { it.score }.thenBy { it.path.length })
